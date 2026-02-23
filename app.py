@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Minimalistické CSS s opraveným parametrem
+# Minimalistické CSS
 st.markdown("""
     <style>
     .stButton>button {
@@ -87,9 +87,4 @@ with st.container():
 
             data = {"Campaign": campaign, "Ad Group": ad_group, "Final URL": final_url}
             for i in range(15): data[f"Headline {i+1}"] = headlines[i]
-            for i in range(4): data[f"Description {i+1}"] = descriptions[i]
-
-            df = pd.DataFrame([data])
-            
-            def color_len(val, max_l):
-                return 'background-color: #
+            for i in range(4): data[f"Description {
