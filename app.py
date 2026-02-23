@@ -17,7 +17,7 @@ if st.button("🚀 Generovat PRO prompt"):
         u_p = f" Do inzerátů povinně a organicky zakomponuj tato USPs: {u_txt}." if u_txt else ""
         p_f = (
             f"Jsi nejlepší seniorní copywriter. Napiš RSA inzerát (15 nadpisů do 30 znaků, 4 popisky do 90 znaků). "
-            f"Texty musí být úderné pro maximální CTR. Psychologie prodeje. "
+            f"Texty musí být úderné pro maximální CTR. "
             f"Zpracuj tento brief: {b_txt}.{u_p}"
         )
         st.info("Zkopírujte tento prompt do AI:")
@@ -54,7 +54,7 @@ if st.button("✅ Načíst do tabulky"):
         st.rerun()
 
 if "df_data" in st.session_state:
-    st.write("### Editor (Změna se projeví po kliknutí mimo buňku)")
+    st.write("### Editor")
     st.data_editor(
         st.session_state.df_data,
         use_container_width=True,
@@ -63,28 +63,37 @@ if "df_data" in st.session_state:
         on_change=prepocet
     )
 
-    # --- 3. KROK: EXPORT DO EXCELU (.xlsx) ---
+    # --- 3. KROK: EXPORT PRO GOOGLE ADS EDITOR ---
     st.markdown("---")
     df_f = st.session_state.df_data
     h = df_f[df_f["Typ"] == "Nadpis"]["Text"].tolist()
     d = df_f[df_f["Typ"] == "Popis"]["Text"].tolist()
     
-    out = {"Campaign": "Kampaň 1", "Ad Group": "Sestava 1", "Final URL": u_link}
-    for i in range(15):
-        out[f"Headline {i+1}"] = h[i] if i < len(h) else ""
-    for i in range(4):
-        out[f"Description {i+1}"] = d[i] if i < len(d) else ""
+    # POUŽITÍ OFICIÁLNÍCH NÁZVŮ SLOUPCŮ
+    out = {
+        "Campaign": "Kampaň 1", 
+        "Ad Group": "Sestava 1", 
+        "Final URL": u_link
+    }
+    
+    # Google Ads Editor preferuje "Headline 1", "Headline 2" atd.
+    for i in range(1, 16):
+        out[f"Headline {i}"] = h[i-1] if i-1 < len(h) else ""
+    
+    # A "Description 1", "Description 2" atd.
+    for i in range(1, 5):
+        out[f"Description {i}"] = d[i-1] if i-1 < len(d) else ""
     
     final_df = pd.DataFrame([out])
 
-    # Tvorba Excel souboru v paměti
+    # Export do Excelu (řeší diakritiku v záhlaví i obsahu)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        final_df.to_excel(writer, index=False, sheet_name='Inzeraty')
+        final_df.to_excel(writer, index=False, sheet_name='RSA_Import')
     
     st.download_button(
-        label="📥 Stáhnout EXCEL (100% čitelná diakritika)",
+        label="📥 Stáhnout EXCEL pro Google Ads Editor",
         data=output.getvalue(),
-        file_name="ppc_export.xlsx",
+        file_name="ppc_import_google.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
