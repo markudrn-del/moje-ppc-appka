@@ -3,7 +3,7 @@ import pandas as pd
 import io
 
 st.set_page_config(layout="wide")
-st.title("PPC Studio")
+st.title("PPC Publicis Studio")
 
 # 1. KROK - PROMPT
 b = st.text_area("1. Vlozte brief")
@@ -19,21 +19,36 @@ st.subheader("2. Editor")
 u = st.text_input("URL webu", "https://publicis.cz")
 v = st.text_area("Vlozte texty od AI sem")
 
-# Podminka nyni kontroluje jen, jestli je v poli 'v' nejaky text
 if v:
     lines = [l.strip() for l in v.split('\n') if l.strip()]
     if lines:
-        # Priprava dat
-        rows = [{"Typ": ("Nadpis" if i < 15 else "Popis"), "Text": t} for i, t in enumerate(lines)]
+        # Tady vytvorime data i se sloupcem Zbyva hned na zacatku
+        rows = []
+        for i, t in enumerate(lines):
+            tp = "Nadpis" if i < 15 else "Popis"
+            lim = 30 if tp == "Nadpis" else 90
+            rows.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
+        
         df = pd.DataFrame(rows)
         
-        st.write("Upravte texty v tabulce (Enter pro potvrzeni):")
-        ed = st.data_editor(df, use_container_width=True, key="e1")
+        st.write("Upravte texty (pro prepocet limitu kliknete na tlacitko nize):")
         
-        # Vypocet znaku - tlacitko pro manualni prepocet pro stabilitu
-        if st.button("Prepocitat znaky"):
+        # EDITOR - nyni vidi vsechny 3 sloupce
+        ed = st.data_editor(
+            df, 
+            use_container_width=True, 
+            key="e1", 
+            hide_index=True
+        )
+        
+        # TLACITKO PRO AKTUALIZACI
+        # Streamlit editor neumi menit jine bunky v realnem case pri psani,
+        # proto tlacitko "Prepocitat" vynuti prekresleni tabulky s novymi limity.
+        if st.button("Aktualizovat pocty znaku"):
             ed["Zbyva"] = ed.apply(lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), axis=1)
-            st.dataframe(ed, use_container_width=True)
+            st.success("Limity prepocitany!")
+            # Zobrazime vysledek pod editorem pro rychlou kontrolu
+            st.dataframe(ed, use_container_width=True, hide_index=True)
         
         # EXPORT
         st.markdown("---")
@@ -47,6 +62,4 @@ if v:
             ex[f"Description {i+1}"] = d[i] if i < len(d) else ""
             
         csv = pd.DataFrame([ex]).to_csv(index=False, sep=';', encoding='utf-8-sig')
-        st.download_button("Stahnout CSV", csv, "export.csv")
-else:
-    st.info("Cekam na vlozeni textu do pole vyse...")
+        st.download_button("
