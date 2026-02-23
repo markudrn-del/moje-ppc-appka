@@ -20,42 +20,49 @@ u_in = st.text_input("URL webu", "https://publicis.cz")
 v_in = st.text_area("Vložte texty od AI sem")
 
 if v_in:
-    # Načtení dat do session_state, aby se tabulka neresetovala při každém kliku
+    # Funkce pro výpočet, kterou zavoláme při každé změně
+    def update_data():
+        # Vezmeme aktuální stav editoru
+        curr_state = st.session_state["main_editor"]
+        df = st.session_state.df_editor
+        
+        # Zapracujeme změny (editace, přidání, smazání)
+        for edit in curr_state.get("edited_rows", {}):
+            for col, val in curr_state["edited_rows"][edit].items():
+                df.at[int(edit), col] = val
+        
+        # Přepočítáme sloupce
+        df["Zbyva"] = df.apply(
+            lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
+            axis=1
+        )
+        st.session_state.df_editor = df
+
+    # Inicializace dat
     if 'df_editor' not in st.session_state:
         lines = [l.strip() for l in v_in.split('\n') if l.strip()]
         data = []
         for i, t in enumerate(lines):
             tp = "Nadpis" if i < 15 else "Popis"
             lim = 30 if tp == "Nadpis" else 90
-            # Výpočet hned při startu
             data.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
         st.session_state.df_editor = pd.DataFrame(data)
 
-    st.info("💡 Po úpravě textu klikněte mimo buňku nebo stiskněte Enter – hodnoty 'Zbyva' se okamžitě přepočítají (i do mínusu).")
-
-    # Zobrazení editoru – výsledek ukládáme do edited_df
-    # Streamlit po každé změně v ed_df spustí kód znovu odshora
-    edited_df = st.data_editor(
+    # Zobrazení editoru s callbackem
+    # Jakmile cokoli změníš a potvrdíš (Enter/Tab/Klik jinam), update_data se spustí
+    st.data_editor(
         st.session_state.df_editor,
         use_container_width=True,
         hide_index=True,
-        key="main_editor"
+        key="main_editor",
+        on_change=update_data
     )
-
-    # KLÍČOVÁ ČÁST: Přepočet sloupce Zbyva z aktuálně rozpracovaných dat
-    # Tento výpočet proběhne hned, jakmile změníte buňku v editoru
-    edited_df["Zbyva"] = edited_df.apply(
-        lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
-        axis=1
-    )
-    
-    # Uložíme aktualizovaná data zpět do paměti aplikace
-    st.session_state.df_editor = edited_df
 
     # EXPORT
     st.markdown("---")
-    h_f = edited_df[edited_df["Typ"] == "Nadpis"]["Text"].tolist()
-    d_f = edited_df[edited_df["Typ"] == "Popis"]["Text"].tolist()
+    df_f = st.session_state.df_editor
+    h_f = df_f[df_f["Typ"] == "Nadpis"]["Text"].tolist()
+    d_f = df_f[df_f["Typ"] == "Popis"]["Text"].tolist()
     
     res = {"Campaign": "K1", "Ad Group": "S1", "URL": u_in}
     for i in range(15):
@@ -72,7 +79,6 @@ if v_in:
     )
 
 else:
-    # Pokud uživatel smaže textové pole, vymažeme i paměť tabulky
     if 'df_editor' in st.session_state:
         del st.session_state.df_editor
     st.write("Čekám na vložení textů...")
