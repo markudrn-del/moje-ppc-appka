@@ -6,13 +6,16 @@ st.set_page_config(page_title="PPC Inzerátovač", layout="wide")
 
 st.title("🚀 PPC Generátor pro Google Ads Editor")
 
-# --- SEKCE 1: GENERÁTOR PROMPTU ---
+# --- NOVÁ SEKCE: GENERÁTOR PROMPTU ---
 st.header("1. Příprava zadání pro Gemini")
-st.markdown("Zde si připravte text, který vložíte do svého placeného Gemini.")
+st.info("Sem vložte podklady a aplikace vám připraví prompt, který pak jen zkopírujete do Gemini.")
 
-user_brief = st.text_area("Vložte text z webu nebo brief:", placeholder="Např. Prodáváme ekologické láhve na vodu...")
+# Pole pro vložení briefu nebo textu z webu
+user_brief = st.text_area("Vložte text briefu nebo obsah webu:", height=150, placeholder="Např. Prodáváme kurzy vaření pro začátečníky v Praze...")
 
-master_prompt_template = """Předmět: Generování responzivních inzerátů ve vyhledávání (RSA)
+if user_brief:
+    # Tady je ten schovaný Master Prompt, který se spojí s tvým textem
+    master_prompt = f"""Předmět: Generování responzivních inzerátů ve vyhledávání (RSA)
 
 Jsi expert na PPC reklamu a copywriting. Tvým úkolem je vytvořit texty pro Google Ads na základě níže uvedeného zadání.
 
@@ -29,51 +32,34 @@ Formát výstupu:
 Vypiš výsledky jako prostý seznam řádků bez odrážek, čísel a uvozovek. Nejdřív všech 15 nadpisů, pak hned pod ně 4 popisky. Každý text na nový řádek. Žádný jiný doprovodný text.
 
 Zadání:
-"""
+{user_brief}"""
 
-if user_brief:
-    full_prompt = master_prompt_template + user_brief
-    st.text_area("Hotový prompt (zkopírujte do Gemini):", full_prompt, height=200)
-    st.info("👆 Zkopírujte text výše, vložte ho do Gemini a pak se vraťte sem s výsledkem.")
+    st.subheader("Hotový prompt pro Gemini:")
+    st.code(master_prompt, language="text")
+    st.warning("👆 Zkopírujte celý blok výše a vložte ho do Gemini.")
 
 st.divider()
 
-# --- SEKCE 2: ZPRACOVÁNÍ VÝSLEDKŮ ---
-st.header("2. Formátování pro Google Editor")
+# --- SEKCE PRO ZPRACOVÁNÍ (Zůstává stejná) ---
+st.header("2. Formátování výsledků od Gemini")
+st.sidebar.header("Nastavení exportu")
+campaign = st.sidebar.text_input("Kampaň", "Kampaň_1")
+ad_group = st.sidebar.text_input("Sestava", "Sestava_1")
+final_url = st.sidebar.text_input("URL", "https://")
 
-# Boční panel s nastavením
-st.sidebar.header("Nastavení kampaně")
-campaign = st.sidebar.text_input("Název kampaně", "Kampaň_1")
-ad_group = st.sidebar.text_input("Název sestavy", "Sestava_1")
-final_url = st.sidebar.text_input("Finální URL", "https://www.priklad.cz")
-
-raw_text = st.text_area("Sem vložte 19 řádků od Gemini:", 
-                        height=250, 
-                        placeholder="Nadpis 1\nNadpis 2\n...")
+raw_text = st.text_area("Sem vložte 19 řádků, které vám Gemini vygeneroval:", height=250)
 
 if raw_text:
-    lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
-    
-    headlines = lines[:15]
-    descriptions = lines[15:19]
-    
-    headlines += [""] * (15 - len(headlines))
-    descriptions += [""] * (4 - len(descriptions))
+    lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
+    headlines = lines[:15] + [""] * (15 - len(lines[:15]))
+    descriptions = lines[15:19] + [""] * (4 - len(lines[15:19]))
 
     data = {"Campaign": campaign, "Ad Group": ad_group, "Final URL": final_url}
     for i in range(15): data[f"Headline {i+1}"] = headlines[i]
     for i in range(4): data[f"Description {i+1}"] = descriptions[i]
 
     df = pd.DataFrame([data])
+    st.dataframe(df) # Pro jednoduchost teď bez barev, aby to hned jelo
 
-    def color_length(val, max_len):
-        return 'background-color: #ff4b4b; color: white' if len(str(val)) > max_len else ''
-
-    styled_df = df.style.applymap(lambda x: color_length(x, 30), subset=[f"Headline {i+1}" for i in range(15)])\
-                       .applymap(lambda x: color_length(x, 90), subset=[f"Description {i+1}" for i in range(4)])
-
-    st.dataframe(styled_df)
-
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False, encoding='utf-8')
-    st.download_button("📥 Stáhnout CSV pro Google Editor", csv_buffer.getvalue(), f"export_{ad_group}.csv", "text/csv")
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Stáhnout CSV pro Google Editor", csv, "export.csv", "text/csv")
