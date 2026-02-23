@@ -15,14 +15,13 @@ st.title("🦁 PPC Publicis Studio")
 # 3. KROK 1
 st.subheader("1. Příprava promptu")
 c1, c2 = st.columns([2, 1])
-b = c1.text_area("Brief:", height=150)
-c = c2.text_area("Vlastní akce/USPs:", height=150)
+b_in = c1.text_area("Brief:", height=150)
+c_in = c2.text_area("Akce:", height=150)
 
 if st.button("✨ Vygenerovat prompt"):
-    if b:
-        p = f"RSA: 30 nadpisu, 10 popisku. Zadani: {b}. Akce: {c}"
+    if b_in:
+        p = f"RSA: 30 nadpisu, 10 popisku. Zadani: {b_in}. Akce: {c_in}"
         st.code(p)
-        st.write("Zkopírujte prompt výše.")
     else:
         st.warning("Zadejte brief.")
 
@@ -30,34 +29,10 @@ st.markdown("---")
 
 # 4. KROK 2
 st.subheader("2. Editor a Export")
-col_m, col_v = st.columns([1, 2])
-kamp = col_m.text_input("Kampaň", "K1")
-sest = col_m.text_input("Sestava", "S1")
-link = col_m.text_input("URL", "https://")
-vstup = col_v.text_area("Vložte texty od AI:", height=150)
+cm, cv = st.columns([1, 2])
+kamp = cm.text_input("Kampaň", "K1")
+sest = cm.text_input("Sestava", "S1")
+link = cm.text_input("URL", "https://")
+vstup = cv.text_area("Vložte texty:", height=150)
 
-load = st.button("⚙️ Načíst do tabulky")
-
-if (load or vstup) and link != "https://":
-    lines = [l.strip() for l in vstup.split('\n') if l.strip()]
-    if lines:
-        # PŘÍPRAVA DAT S POČÍTADLEM
-        rows = []
-        for i, txt in enumerate(lines):
-            typ = "Nadpis" if i < 15 else "Popis"
-            limit = 30 if typ == "Nadpis" else 90
-            zbyva = limit - len(txt)
-            rows.append({"Typ": typ, "Text": txt, "Zbývá": zbyva})
-        
-        df = pd.DataFrame(rows)
-        st.write("### 📝 Editujte v tabulce:")
-        
-        # INTERAKTIVNÍ EDITOR
-        ed_df = st.data_editor(
-            df, 
-            use_container_width=True, 
-            hide_index=True, 
-            key="ed1",
-            column_config={
-                "Typ": st.column_config.TextColumn("Typ", disabled=True),
-                "Text": st.column_config.TextColumn("Text (edit
+if (st.button("⚙
