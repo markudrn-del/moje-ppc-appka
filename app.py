@@ -8,36 +8,34 @@ st.title("🦁 PPC Publicis Studio")
 # --- 1. KROK: VSTUPY ---
 c1, c2 = st.columns(2)
 with c1:
-    b_txt = st.text_area("Brief", height=100)
+    b_txt = st.text_area("Brief (o čem je kampaň)", height=100)
 with c2:
-    u_txt = st.text_input("Vlastní USPs")
+    u_txt = st.text_input("Vlastní USPs (budou povinně v inzerátech)")
 
 if st.button("🚀 Generovat PRO prompt"):
     if b_txt:
-        u_p = f" USPs: {u_txt}." if u_txt else ""
+        u_p = f" Do inzerátů povinně a organicky zakomponuj tato USPs: {u_txt}." if u_txt else ""
         p_f = (
-            f"Jsi špičkový copywriter. Napiš RSA (15 nadpisů do 30 zn., 4 popisky do 90 zn.). "
-            f"Musí být kreativní pro vysoké CTR. Psychologie prodeje. "
-            f"Zpracuj brief: {b_txt}.{u_p}"
+            f"Jsi nejlepší seniorní copywriter. Napiš RSA inzerát (15 nadpisů do 30 znaků, 4 popisky do 90 znaků). "
+            f"Texty musí být úderné pro maximální CTR. Psychologie prodeje. "
+            f"Zpracuj tento brief: {b_txt}.{u_p}"
         )
-        st.info("Zkopírujte do AI:")
+        st.info("Zkopírujte tento prompt do AI:")
         st.code(p_f)
 
 st.markdown("---")
 
 # --- 2. KROK: EDITOR ---
 u_link = st.text_input("Finální URL", "https://publicis.cz")
-v_raw = st.text_area("Vložte texty z AI sem", height=200)
+v_raw = st.text_area("Vložte texty vygenerované AI sem", height=200)
 
 def prepocet():
     if "ppc_editor" in st.session_state and "df_data" in st.session_state:
         ed_state = st.session_state["ppc_editor"]
         df = st.session_state.df_data
-        # Propis změn
         for r, h in ed_state.get("edited_rows", {}).items():
             for col, val in h.items():
                 df.at[int(r), col] = val
-        # Přepočet limitů
         def get_rem(row):
             lim = 30 if row["Typ"] == "Nadpis" else 90
             return lim - len(str(row["Text"]))
@@ -56,7 +54,7 @@ if st.button("✅ Načíst do tabulky"):
         st.rerun()
 
 if "df_data" in st.session_state:
-    st.write("### Editor")
+    st.write("### Editor (Změna se projeví po kliknutí mimo buňku)")
     st.data_editor(
         st.session_state.df_data,
         use_container_width=True,
@@ -65,7 +63,7 @@ if "df_data" in st.session_state:
         on_change=prepocet
     )
 
-    # --- 3. KROK: EXPORT (OPRAVA DIKRITIKY) ---
+    # --- 3. KROK: EXPORT DO EXCELU (.xlsx) ---
     st.markdown("---")
     df_f = st.session_state.df_data
     h = df_f[df_f["Typ"] == "Nadpis"]["Text"].tolist()
@@ -77,14 +75,16 @@ if "df_data" in st.session_state:
     for i in range(4):
         out[f"Description {i+1}"] = d[i] if i < len(d) else ""
     
-    # EXCEL-FRIENDLY EXPORT: utf-16 s tabulátorem je pro Excel nejjistější
-    df_final = pd.DataFrame([out])
-    csv_buffer = io.StringIO()
-    df_final.to_csv(csv_buffer, index=False, sep='\t', encoding='utf-16')
+    final_df = pd.DataFrame([out])
+
+    # Tvorba Excel souboru v paměti
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        final_df.to_excel(writer, index=False, sheet_name='Inzeraty')
     
     st.download_button(
-        label="📥 Stáhnout CSV pro Excel (bez chyb)",
-        data=csv_buffer.getvalue(),
-        file_name="ppc_export.csv",
-        mime="text/csv"
+        label="📥 Stáhnout EXCEL (100% čitelná diakritika)",
+        data=output.getvalue(),
+        file_name="ppc_export.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
