@@ -1,31 +1,14 @@
 import streamlit as st
 import pandas as pd
-import io
 
 st.set_page_config(layout="wide")
-st.title("PPC Publicis Studio")
+st.title("PPC Studio")
 
-# 1. KROK
-b_txt = st.text_area("Brief")
-u_txt = st.text_input("USPs")
+# 1. KROK - VSTUP
+v_raw = st.text_area("Vlozte AI texty sem", height=150)
+load = st.button("Vytvorit editor")
 
-if st.button("Generovat prompt"):
-    if b_txt:
-        st.code(f"RSA: 30 nadpisu, 10 popisku. {b_txt}. {u_txt}")
-
-st.markdown("---")
-
-# 2. KROK
-u_link = st.text_input("URL", "https://publicis.cz")
-v_raw = st.text_area("AI texty", height=200)
-load = st.button("Nacist do tabulky")
-
-# Funkce pro barvy (Zelena / Cervena)
-def get_style(row):
-    color = "#ccffcc" if row["Zbyva"] >= 0 else "#ffcccc"
-    return [f"background-color: {color}"] * len(row)
-
-# Inicializace pameti
+# Inicializace session state
 if load and v_raw:
     ls = [l.strip() for l in v_raw.split('\n') if l.strip()]
     rows = []
@@ -33,40 +16,31 @@ if load and v_raw:
         tp = "Nadpis" if i < 15 else "Popis"
         lim = 30 if tp == "Nadpis" else 90
         rows.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
-    st.session_state.df_editor = pd.DataFrame(rows)
+    st.session_state.df = pd.DataFrame(rows)
 
-# Zobrazeni JEDNE tabulky
-if "df_editor" in st.session_state:
-    df = st.session_state.df_editor
+# JEDNA TABULKA - EDITOR
+if "df" in st.session_state:
+    st.write("### Editor (Zbyva se prepocita hned po Enteru):")
     
-    st.write("### Upravte texty (Zbyva se prepocita po potvrzeni):")
-    
-    # Tady je ten trik: Editoru predame ostylovany DataFrame
-    # Kazdy radek bude mit barvu podle sloupce Zbyva
-    styled_df = df.style.apply(get_style, axis=1)
-    
-    ed_out = st.data_editor(
-        styled_df,
+    # Zobrazeni editoru
+    # Poznamka: Klicem k uspechu je, ze vysledek ukladame primo do df a hned ho prepocitame
+    edited_df = st.data_editor(
+        st.session_state.df,
         use_container_width=True,
         hide_index=True,
-        key="single_editor_v1"
+        key="ppc_editor_final"
     )
-    
-    # Okamzity prepocet hodnot (pro probehnuti pri pristim refreshu)
-    ed_out["Zbyva"] = ed_out.apply(
+
+    # OKAMZITY PREPOCET (Vzdy, kdyz se stranka obnovi po zmene v editoru)
+    edited_df["Zbyva"] = edited_df.apply(
         lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
         axis=1
     )
-    st.session_state.df_editor = ed_out
+    
+    # Ulozeni aktualniho stavu, aby se cisla nevracela zpet
+    st.session_state.df = edited_df
 
     # EXPORT
     st.markdown("---")
-    h = ed_out[ed_out["Typ"] == "Nadpis"]["Text"].tolist()
-    d = ed_out[ed_out["Typ"] == "Popis"]["Text"].tolist()
-    
-    res = {"Campaign": "K1", "Ad Group": "S1", "URL": u_link}
-    for i in range(15): res[f"H{i+1}"] = h[i] if i < len(h) else ""
-    for i in range(4): res[f"D{i+1}"] = d[i] if i < len(d) else ""
-            
-    csv = pd.DataFrame([res]).to_csv(index=False, sep=';', encoding='utf-8-sig')
-    st.download_button("Stahnout hotove CSV", csv, "export_ppc.csv")
+    csv = edited_df.to_csv(index=False, sep=';', encoding='utf-8-sig')
+    st.download_button("Stahnout CSV", csv, "export.csv")
