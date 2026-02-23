@@ -3,66 +3,60 @@ import pandas as pd
 import io
 from datetime import datetime
 
-# Konfigurace stránky
-st.set_page_config(
-    page_title="PPC generátor inzerátů", 
-    page_icon="🎯", 
-    layout="centered"
-)
+st.set_page_config(page_title="PPC generátor", page_icon="🎯", layout="centered")
 
-# Minimalistické CSS
-st.markdown("""
-    <style>
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #000000;
-        color: white;
-        border: none;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# CSS styl
+st.markdown("<style>.stButton>button{width:100%;background-color:black;color:white;}</style>", unsafe_allow_html=True)
 
-# --- SIDEBAR S PODPISEM ---
+# Sidebar
 with st.sidebar:
     st.markdown("### O aplikaci")
-    st.info("Pomocník pro PPC specialisty při tvorbě RSA inzerátů.")
+    st.info("Nástroj pro tvorbu RSA inzerátů.")
     st.markdown("---")
-    st.markdown(f"**Vytvořil:** Martin Kudrna, {datetime.now().year}")
-    st.markdown("**Poslední update:** 23. února 2026")
+    st.markdown(f"**Autor:** Martin Kudrna, {datetime.now().year}")
+    st.markdown("**Update:** 23. 2. 2026")
 
-# --- HLAVNÍ OBSAH ---
 st.title("🎯 PPC generátor inzerátů")
-st.caption("Minimalistický nástroj pro tvorbu RSA inzerátů z briefu do Google Editoru.")
 
-# 1. SEKCE: GENERÁTOR PROMPTU
-with st.container():
-    st.subheader("1. Příprava zadání")
-    user_brief = st.text_area(
-        "Vložte brief nebo obsah webu", 
-        height=150, 
-        placeholder="Popište produkt, benefity..."
-    )
-
-    if st.button("✨ Vygenerovat prompt pro Gemini"):
-        if user_brief:
-            master_prompt = f"Předmět: RSA Inzeráty\nJsi expert na PPC. Vytvoř 15 nadpisů (max 30 znaků) a 4 popisky (max 90 znaků). Bez vykřičníků v nadpisech. Formát: 19 řádků pod sebou. Zadání: {user_brief}"
-            st.info("Zkopírujte prompt do Gemini:")
-            st.code(master_prompt, language="text")
-        else:
-            st.warning("Před vygenerováním vložte text zadání.")
+# 1. Prompt
+st.subheader("1. Příprava zadání")
+brief = st.text_area("Vložte brief:", height=100)
+if st.button("✨ Vygenerovat prompt"):
+    if brief:
+        p = f"Jsi PPC expert. Vytvoř 15 nadpisů (max 30 zn.) a 4 popisky (max 90 zn.) pro RSA. Žádné vykřičníky. Formát: 19 řádků pod sebou. Zadání: {brief}"
+        st.code(p, language="text")
+    else:
+        st.warning("Vložte zadání.")
 
 st.markdown("---")
 
-# 2. SEKCE: EXPORT
-with st.container():
-    st.subheader("2. Export pro Google Editor")
+# 2. Export
+st.subheader("2. Export pro Google Editor")
+c1, c2 = st.columns(2)
+camp = c1.text_input("Kampaň", "Kampaň_1")
+seta = c2.text_input("Sestava", "Sestava_1")
+url = st.text_input("Finální URL", "https://")
+raw = st.text_area("Vložte 19 řádků od AI:", height=200)
+
+if raw and url != "https://":
+    ls = [l.strip() for l in raw.split('\n') if l.strip()]
+    h = ls[:15] + [""] * (15 - len(ls[:15]))
+    d = ls[15:19] + [""] * (4 - len(ls[15:19]))
     
-    col1, col2 = st.columns(2)
-    with col1:
-        camp_input = st.text_input("Kampaň", placeholder="Kampaň_01")
-    with col2:
-        group_input = st.text_input("Sestava", placeholder="Sestava_01")
+    data = {"Campaign": camp, "Ad Group": seta, "Final URL": url}
+    for i in range(15): data[f"Headline {i+1}"] = h[i]
+    for i in range(4): data[f"Description {i+1}"] = d[i]
     
-    final_
+    df = pd.DataFrame([data])
+    
+    def color_l(v, m):
+        return 'background-color: #ffebee; color: #c62828' if len(str(v)) > m else ''
+
+    st.dataframe(df.style.applymap(lambda x: color_l(x, 30), subset=[f"Headline {i+1}" for i in range(15)])
+                       .applymap(lambda x: color_l(x, 90), subset=[f"Description {i+1}" for i in range(4)]))
+
+    buf = io.StringIO()
+    df.to_csv(buf, index=False)
+    st.download_button("📥 Stáhnout CSV", buf.getvalue(), "export.csv", "text/csv")
+elif raw:
+    st.error("Vyplňte URL adresu.")
