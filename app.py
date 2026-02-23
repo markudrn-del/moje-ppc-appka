@@ -4,7 +4,7 @@ import io
 import random
 from datetime import datetime
 
-# 1. Styl a Setup
+# 1. Setup a minimalistický styl
 st.set_page_config(page_title="PPC Studio")
 
 st.markdown("""
@@ -14,14 +14,18 @@ st.markdown("""
     background-color: black;
     color: white;
     border-radius: 8px;
+    transition: 0.3s;
 }
 .stButton>button:hover {
     background-color: #A89264;
 }
+/* EXTRÉMNÍ ZMENŠENÍ POLE PRO PROMPT */
 code {
-    height: 80px !important;
+    height: 45px !important;
+    min-height: 45px !important;
     display: block;
     overflow-y: auto;
+    font-size: 12px !important;
 }
 .ad-p {
     background: white;
@@ -43,7 +47,7 @@ with st.sidebar:
 
 st.title("🦁 PPC Publicis Studio")
 
-# 3. KROK 1
+# 3. KROK 1: PROMPT
 st.subheader("1. Zadání")
 brf = st.text_area("Vložte brief:", height=200)
 
@@ -51,14 +55,14 @@ if st.button("✨ Prompt"):
     if brf:
         p = "RSA: 15 nadpisu, 4 popisky. "
         p += f"Zadani: {brf}"
-        st.write("**Prompt:**")
+        st.write("**Prompt (zkopírujte ikonkou vpravo):**")
         st.code(p, language="text")
     else:
         st.warning("Prázdné.")
 
 st.markdown("---")
 
-# 4. KROK 2
+# 4. KROK 2: EXPORTY
 st.subheader("2. Náhledy a CSV")
 c1, c2 = st.columns(2)
 k = c1.text_input("Kampaň", "K1")
@@ -82,15 +86,27 @@ if v and u != "https://":
         
         ad = f"""
         <div class="ad-p">
-            <div class="ad-title">{t}</div>
-            <div class="ad-desc">{ds}</div>
+            <div style="font-size:12px;color:gray;">Sponzorováno</div>
+            <div style="color:#1a0dab;font-size:18px;">{t}</div>
+            <div style="color:#4d5156;font-size:14px;">{ds}</div>
         </div>"""
         st.markdown(ad, unsafe_allow_html=True)
         ht += ad
 
-    # CSV
+    # CSV EXPORT
     data = {"Campaign": k, "Ad Group": s, "URL": u}
     for i in range(15):
-        data[f"H{i+1}"] = h[i] if i<len(h) else ""
+        data[f"Headline {i+1}"] = h[i] if i<len(h) else ""
     for i in range(4):
-        data[f"D{i+1}"]
+        data[f"Description {i+1}"] = d[i] if i<len(d) else ""
+    
+    df = pd.DataFrame([data])
+    buf = io.StringIO()
+    df.to_csv(buf,index=False,sep=';',encoding='utf-8-sig')
+    
+    st.write("### 📊 Stažení")
+    st.download_button("📥 CSV pro Google Editor", buf.getvalue(), "data.csv")
+    st.download_button("📄 PDF/HTML Náhledy", ht, "nahledy.html")
+
+elif v:
+    st.error("Chybí URL.")
