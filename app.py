@@ -3,57 +3,76 @@ import pandas as pd
 import io
 from datetime import datetime
 
-# 1. Konfigurace a CSS
+# 1. Zakladni nastaveni
 st.set_page_config(page_title="PPC", layout="centered")
-st.markdown("""
-    <style>
-    .stButton>button {
-        width: 100%;
-        background-color: #000;
-        color: #fff;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
-# 2. Sidebar
+# 2. Sidebar s logem
 with st.sidebar:
-    logo = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Publicis_Groupe_logo.svg/1200px-Publicis_Groupe_logo.svg.png"
-    st.image(logo, width=180)
+    url_logo = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Publicis_Groupe_logo.svg/1200px-Publicis_Groupe_logo.svg.png"
+    st.image(url_logo, width=150)
     st.markdown("---")
-    st.info("PPC nástroj Publicis.")
     rok = datetime.now().year
-    st.markdown(f"**Vytvořil:** Martin Kudrna, {rok}")
-    st.markdown("**Update:** 23. 2. 2026")
+    st.write(f"Autor: Martin Kudrna, {rok}")
+    st.write("Update: 23. 2. 2026")
 
-# 3. Hlavní obsah
-st.image(logo, width=120)
+# 3. Hlavni cast
 st.title("🎯 PPC generátor")
 
-st.subheader("1. Příprava zadání")
-brief = st.text_area("Vložte brief/web:", height=200)
+st.subheader("1. Zadani")
+txt = st.text_area("Vlozte brief:", height=200)
 
-if st.button("✨ Vygenerovat prompt"):
-    if brief:
-        # Rozdělený prompt, aby se řádek neosekl
-        p1 = "Jsi PPC expert. Vytvoř 15 nadpisů (max 30 zn.) "
-        p2 = "a 4 popisky (max 90 zn.) pro RSA. Žádné "
-        p3 = "vykřičníky. Formát: 19 řádků pod sebou. "
-        p4 = f"Zadání: {brief}"
-        full_p = p1 + p2 + p3 + p4
-        st.write("**Prompt pro Gemini:**")
-        st.code(full_p, language="text")
+if st.button("✨ Vygenerovat"):
+    if txt:
+        prompt = "Jsi PPC expert. RSA inzeraty: 15 nadpisu (30 zn) a 4 popisky (90 zn). Bez vykricniku. "
+        prompt += f"Zadani: {txt}"
+        st.code(prompt, language="text")
     else:
-        st.warning("Vložte text.")
+        st.warning("Prazdne zadani.")
 
 st.markdown("---")
 
-st.subheader("2. Export pro Editor")
+st.subheader("2. Export")
 c1, c2 = st.columns(2)
-camp = c1.text_input("Kampaň", "Kampaň_1")
-seta = c2.text_input("Sestava", "Sestava_1")
-url = st.text_input("URL", "https://")
-raw = st.text_area("Vložte 19 řádků od AI:", height=200)
+kampan = c1.text_input("Kampan", "K1")
+sestava = c2.text_input("Sestava", "S1")
+web = st.text_input("URL", "https://")
+vstup = st.text_area("Vlozte 19 radku od AI:", height=200)
 
-if raw and url != "https://":
-    lines = [l.strip() for l in raw.split('\n') if l.strip()]
-    h = lines[0:15
+# Bezpecne zpracovani radku
+if vstup and web != "https://":
+    rady = [r.strip() for r in vstup.split('\n') if r.strip()]
+    
+    # Rozdeleni na nadpisy a popisky (bezpecne)
+    nadpisy = rady[0:15]
+    popisky = rady[15:19]
+    
+    # Doplneni do poctu
+    while len(nadpisy) < 15:
+        nadpisy.append("")
+    while len(popisky) < 4:
+        popisky.append("")
+
+    # Tabulka
+    d = {"Campaign": kampan, "Ad Group": sestava, "Final URL": web}
+    for i in range(15):
+        d[f"Headline {i+1}"] = nadpisy[i]
+    for i in range(4):
+        d[f"Description {i+1}"] = popisky[i]
+
+    df = pd.DataFrame([d])
+    
+    # Kontrola delek
+    def check(v, m):
+        if len(str(v)) > m:
+            return 'background-color: #ffcccc'
+        return ''
+
+    st.dataframe(df.style.applymap(lambda x: check(x, 30), 
+        subset=[f"Headline {i+1}" for i in range(15)]))
+
+    # CSV s diakritikou
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8-sig')
+    st.download_button("📥 Stahnout CSV", buf.getvalue(), "export.csv")
+elif vstup:
+    st.error("Chybi URL.")
