@@ -15,17 +15,17 @@ if st.button("Generovat prompt"):
 st.markdown("---")
 
 # 2. KROK - EDITOR
-st.subheader("2. Editor")
+st.subheader("2. Editor a kontrola limitů")
 u_in = st.text_input("URL webu", "https://publicis.cz")
 v_in = st.text_area("Vložte texty od AI sem")
 
 if v_in:
-    # Funkce pro barvení buněk
-    def color_cells(val):
-        # Pokud je hodnota záporná (přes limit), dej červenou, jinak zelenou
-        color = '#ffcccc' if val < 0 else '#ccffcc'
+    # Funkce pro barvení: Zelená pro OK (0 a víc), Červená pro zápor
+    def color_status(val):
+        color = '#ccffcc' if val >= 0 else '#ffcccc'
         return f'background-color: {color}'
 
+    # Logika aktualizace dat
     def update_data():
         curr_state = st.session_state["main_editor"]
         df = st.session_state.df_editor
@@ -48,17 +48,4 @@ if v_in:
             data.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
         st.session_state.df_editor = pd.DataFrame(data)
 
-    # Zobrazení editoru
-    # Poznámka: Samotný editor barvy buněk při psaní neumí měnit (to je omezení Streamlitu),
-    # ale hned pod ním uvidíš ostrou tabulku s barvami.
-    st.data_editor(
-        st.session_state.df_editor,
-        use_container_width=True,
-        hide_index=True,
-        key="main_editor",
-        on_change=update_data
-    )
-
-    # ŽIVÝ SEMAFOR - Tato tabulka ukazuje barvy
-    st.write("### Kontrola limitů:")
-    styled_df = st.session_state.df_editor.style.applymap(color_cells, subset=['Zbyva'])
+    # 1.
