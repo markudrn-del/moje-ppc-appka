@@ -1,11 +1,3 @@
-Zdá se, že editor GitHubu má stále tendenci ořezávat řádky na určitém počtu znaků, což způsobuje chybu v syntaxi Pythonu (nedokončený textový řetězec).
-
-Abychom tomu předešli, připravil jsem verzi, kde jsou všechny kritické texty extrémně krátké. Rozdělil jsem i informační hlášky tak, aby žádný řádek v celém kódu nepřesáhl bezpečnou délku.
-
-🎯 Super-odolný kód pro app.py
-Smažte prosím v GitHubu celý obsah souboru a vložte tam tento kód. Před potvrzením (Commit) se ujistěte, že vidíte i poslední řádek st.error.
-
-Python
 import streamlit as st
 import pandas as pd
 import io
@@ -53,7 +45,6 @@ if st.button("✨ Vygenerovat prompt"):
         
         st.write("**Prompt pro Gemini:**")
         st.code(p, language="text")
-        # Velmi kratky radek pro info
         st.info("Kopirujte ikonkou vpravo nahore.")
     else:
         st.warning("Zadejte text.")
@@ -77,27 +68,3 @@ if (vstup and web != "https://"):
     data = {"Campaign": kampan, "Ad Group": sestava, "Final URL": web}
     for i in range(15):
         data[f"Headline {i+1}"] = h[i]
-    for i in range(4):
-        data[f"Description {i+1}"] = d[i]
-
-    df = pd.DataFrame([data])
-    
-    def check(v, m):
-        return 'background-color: #ffcccc' if len(str(v)) > m else ''
-
-    st.write("### Kontrola a stažení")
-    h_cols = [f"Headline {i+1}" for i in range(15)]
-    st.dataframe(df.style.applymap(lambda x: check(x, 30), subset=h_cols))
-
-    # Export pro cesky Excel (strednik + BOM)
-    buf = io.StringIO()
-    df.to_csv(buf, index=False, sep=';', encoding='utf-8-sig')
-    
-    st.download_button(
-        label="📥 Stáhnout CSV",
-        data=buf.getvalue(),
-        file_name=f"export_{sestava}.csv",
-        mime="text/csv"
-    )
-elif vstup:
-    st.error("Chybí URL adresa.")
