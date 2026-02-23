@@ -5,61 +5,69 @@ import io
 st.set_page_config(layout="wide")
 st.title("PPC Publicis Studio")
 
-# 1. KROK - PROMPT
-b = st.text_area("1. Vlozte brief")
-c = st.text_input("2. Vlastni USPs")
-if st.button("Generovat prompt"):
-    if b:
-        st.code(f"RSA: 30 nadpisu, 10 popisku. {b}. {c}")
+# 1. KROK
+b_in = st.text_area("Brief")
+c_in = st.text_input("USPs")
+
+if st.button("Prompt"):
+    if b_in:
+        txt = f"RSA: 30 nadpisu, 10 popisku. {b_in}. {c_in}"
+        st.code(txt)
 
 st.markdown("---")
 
-# 2. KROK - EDITOR
-st.subheader("2. Editor")
-u = st.text_input("URL webu", "https://publicis.cz")
-v = st.text_area("Vlozte texty od AI sem")
+# 2. KROK
+u_in = st.text_input("URL", "https://publicis.cz")
+v_in = st.text_area("AI texty")
 
-if v:
-    lines = [l.strip() for l in v.split('\n') if l.strip()]
+if v_in:
+    lines = v_in.split('\n')
+    lines = [l.strip() for l in lines if l.strip()]
+    
     if lines:
-        # Tady vytvorime data i se sloupcem Zbyva hned na zacatku
-        rows = []
+        data = []
         for i, t in enumerate(lines):
             tp = "Nadpis" if i < 15 else "Popis"
             lim = 30 if tp == "Nadpis" else 90
-            rows.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
+            rem = lim - len(str(t))
+            data.append({"Typ": tp, "Text": t, "Zbyva": rem})
         
-        df = pd.DataFrame(rows)
+        df = pd.DataFrame(data)
         
-        st.write("Upravte texty (pro prepocet limitu kliknete na tlacitko nize):")
+        st.write("Upravte texty v tabulce:")
         
-        # EDITOR - nyni vidi vsechny 3 sloupce
-        ed = st.data_editor(
-            df, 
-            use_container_width=True, 
-            key="e1", 
-            hide_index=True
-        )
+        # EDITOR
+        ed = st.data_editor(df, use_container_width=True, key="e1")
         
-        # TLACITKO PRO AKTUALIZACI
-        # Streamlit editor neumi menit jine bunky v realnem case pri psani,
-        # proto tlacitko "Prepocitat" vynuti prekresleni tabulky s novymi limity.
-        if st.button("Aktualizovat pocty znaku"):
-            ed["Zbyva"] = ed.apply(lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), axis=1)
-            st.success("Limity prepocitany!")
-            # Zobrazime vysledek pod editorem pro rychlou kontrolu
-            st.dataframe(ed, use_container_width=True, hide_index=True)
-        
+        # AKTUALIZACE
+        if st.button("Prepocitat"):
+            # Vypocet delek
+            t_col = ed["Text"].astype(str)
+            ed["Zbyva"] = ed.apply(
+                lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
+                axis=1
+            )
+            st.dataframe(ed, use_container_width=True)
+
         # EXPORT
         st.markdown("---")
-        h = ed[ed["Typ"] == "Nadpis"]["Text"].tolist()
-        d = ed[ed["Typ"] == "Popis"]["Text"].tolist()
+        h_f = ed[ed["Typ"] == "Nadpis"]["Text"].tolist()
+        d_f = ed[ed["Typ"] == "Popis"]["Text"].tolist()
         
-        ex = {"Campaign": "K1", "Ad Group": "S1", "Final URL": u}
+        res = {"Campaign": "K1", "Ad Group": "S1", "URL": u_in}
         for i in range(15):
-            ex[f"Headline {i+1}"] = h[i] if i < len(h) else ""
+            val = h_f[i] if i < len(h_f) else ""
+            res[f"H{i+1}"] = val
         for i in range(4):
-            ex[f"Description {i+1}"] = d[i] if i < len(d) else ""
+            val = d_f[i] if i < len(d_f) else ""
+            res[f"D{i+1}"] = val
             
-        csv = pd.DataFrame([ex]).to_csv(index=False, sep=';', encoding='utf-8-sig')
-        st.download_button("
+        csv_df = pd.DataFrame([res])
+        csv_data = csv_df.to_csv(index=False, sep=';', encoding='utf-8-sig')
+        
+        # ROZDELENE TLACITKO PRO STABILITU
+        st.download_button(
+            label="Download CSV",
+            data=csv_data,
+            file_name="export.csv"
+        )
