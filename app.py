@@ -5,7 +5,7 @@ import io
 st.set_page_config(layout="wide")
 st.title("🦁 PPC Publicis Studio")
 
-# 1. KROK - PROMPT (Zjednodušeno pro stabilitu)
+# 1. KROK - PROMPT
 b_in = st.text_area("Brief")
 c_in = st.text_input("USPs")
 if st.button("Generovat prompt"):
@@ -14,55 +14,47 @@ if st.button("Generovat prompt"):
 
 st.markdown("---")
 
-# 2. KROK - EDITOR S OKAMŽITÝM PŘEPOČTEM
+# 2. KROK - EDITOR
 u_in = st.text_input("URL", "https://publicis.cz")
 v_in = st.text_area("Vložte texty od AI sem")
 
 if v_in:
-    # Funkce pro přepočet limitů
-    def prepocitej_limity(df):
-        df["Zbyva"] = df.apply(
-            lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
-            axis=1
-        )
-        return df
-
-    # Načtení dat do paměti (session state), aby se změny neztrácely
-    if 'df_editor' not in st.session_state or st.button("Resetovat tabulku"):
+    # 1. Zpracování vstupních textů do DataFrame (pokud ještě není v session_state)
+    if 'df_editor' not in st.session_state:
         lines = [l.strip() for l in v_in.split('\n') if l.strip()]
         data = []
         for i, t in enumerate(lines):
             tp = "Nadpis" if i < 15 else "Popis"
-            data.append({"Typ": tp, "Text": t})
+            # Přidáme Zbyva hned při startu
+            lim = 30 if tp == "Nadpis" else 90
+            data.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
         st.session_state.df_editor = pd.DataFrame(data)
 
-    # Zobrazení editoru
-    st.write("### Upravte texty (Změna se projeví po kliknutí mimo buňku):")
-    
-    # Důležité: Tady bereme data ze session_state a výsledek ukládáme zpět
-    edited_data = st.data_editor(
+    st.write("### Upravte texty v tabulce:")
+
+    # 2. Zobrazení JEDNÉ tabulky
+    # Výsledek editoru ukládáme přímo do proměnné
+    edited_df = st.data_editor(
         st.session_state.df_editor,
         use_container_width=True,
         hide_index=True,
         key="main_editor"
     )
 
-    # OKAMŽITÝ PŘEPOČET: Streamlit spustí tento kód při každé interakci
-    # Výsledek přepočtu zobrazíme v reálném čase
-    st.session_state.df_editor = prepocitej_limity(edited_data)
-
-    # Vizuální kontrola - tabulka s aktuálními limity
-    st.dataframe(
-        st.session_state.df_editor, 
-        use_container_width=True, 
-        hide_index=True
+    # 3. REÁLNÝ PŘEPOČET: Tato část kódu se spustí při každém "pohnutí" v tabulce
+    # Přepočítáme sloupec Zbyva na základě aktuálního obsahu sloupce Text
+    edited_df["Zbyva"] = edited_df.apply(
+        lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
+        axis=1
     )
+    
+    # Synchronizujeme změny zpět do session_state
+    st.session_state.df_editor = edited_df
 
-    # EXPORT
+    # 4. EXPORT (bere data z té jediné upravené tabulky)
     st.markdown("---")
-    df_final = st.session_state.df_editor
-    h_f = df_final[df_final["Typ"] == "Nadpis"]["Text"].tolist()
-    d_f = df_final[df_final["Typ"] == "Popis"]["Text"].tolist()
+    h_f = edited_df[edited_df["Typ"] == "Nadpis"]["Text"].tolist()
+    d_f = edited_df[edited_df["Typ"] == "Popis"]["Text"].tolist()
     
     res = {"Campaign": "K1", "Ad Group": "S1", "URL": u_in}
     for i in range(15):
@@ -77,3 +69,9 @@ if v_in:
         data=csv_data,
         file_name="export_ppc.csv"
     )
+
+else:
+    # Pokud uživatel smaže text, vyčistíme i paměť tabulky
+    if 'df_editor' in st.session_state:
+        del st.session_state.df_editor
+    st.info("Čekám na vložení textů...")
