@@ -13,10 +13,16 @@ with col2:
 
 if st.button("Generovat prompt pro AI"):
     if b_txt:
-        # ZESÍLENÝ PROMPT: Explicitně nařizuje použití USPs
+        # UPRAVENÝ PROMPT: Přidána role expertního copywritera a zaměření na proklikovost
         usp_part = f" Do inzerátů povinně zakomponuj tato USPs: {u_txt}." if u_txt else ""
-        prompt_final = f"RSA: 15 nadpisů (do 30 znaků), 4 popisky (do 90 znaků). Brief: {b_txt}.{usp_part}"
-        st.info("Zkopírujte tento prompt do AI:")
+        prompt_final = (
+            f"Jsi špičkový seniorní copywriter specializující se na výkonnostní PPC reklamu. "
+            f"Tvým úkolem je napsat RSA inzerát (15 nadpisů do 30 znaků a 4 popisky do 90 znaků), "
+            f"které budou neodolatelné, kreativní a donutí uživatele na ně kliknout (vysoké CTR). "
+            f"Využívej psychologii prodeje a emoce. "
+            f"Zde je brief: {b_txt}.{usp_part}"
+        )
+        st.info("Zkopírujte tento 'pro' prompt do AI:")
         st.code(prompt_final)
     else:
         st.warning("Nejdříve vložte brief.")
@@ -27,25 +33,19 @@ st.markdown("---")
 u_link = st.text_input("Finální URL webu", "https://publicis.cz")
 v_raw = st.text_area("Vložte texty od AI sem", height=150)
 
-# FUNKCE PRO PŘEPOČET A BARVY
 def prepocitej_vse():
     if "ppc_editor" in st.session_state:
         zmeny = st.session_state["ppc_editor"]
         df = st.session_state.df_data
-        
         for radek, hodnoty in zmeny.get("edited_rows", {}).items():
             for sloupec, nova_hodnota in hodnoty.items():
                 df.at[int(radek), sloupec] = nova_hodnota
-        
         df["Zbyva"] = df.apply(
-            lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), 
-            axis=1
+            lambda x: (30 if x["Typ"] == "Nadpis" else 90) - len(str(x["Text"])), axis=1
         )
-        # Indikátor: Smajlík pro rychlou vizuální kontrolu v tabulce
         df["Stav"] = df["Zbyva"].apply(lambda x: "✅ OK" if x >= 0 else "❌ DLOUHÉ")
         st.session_state.df_data = df
 
-# Tlačítko pro načtení
 if st.button("✅ Načíst do tabulky") and v_raw:
     ls = [l.strip() for l in v_raw.split('\n') if l.strip()]
     rows = []
@@ -53,19 +53,12 @@ if st.button("✅ Načíst do tabulky") and v_raw:
         tp = "Nadpis" if i < 15 else "Popis"
         lim = 30 if tp == "Nadpis" else 90
         zb = lim - len(str(t))
-        rows.append({
-            "Typ": tp, 
-            "Text": t, 
-            "Zbyva": zb, 
-            "Stav": "✅ OK" if zb >= 0 else "❌ DLOUHÉ"
-        })
+        rows.append({"Typ": tp, "Text": t, "Zbyva": zb, "Stav": "✅ OK" if zb >= 0 else "❌ DLOUHÉ"})
     st.session_state.df_data = pd.DataFrame(rows)
 
-# ZOBRAZENÍ EDITORU
 if "df_data" in st.session_state:
-    st.write("### Upravte texty (Změna se projeví po kliknutí mimo buňku):")
+    st.write("### Upravte texty (Zbyva se okamžitě přepočítá):")
     
-    # Stylizace - barvení textu ve sloupci Zbyva
     def color_negative(val):
         color = 'red' if val < 0 else 'green'
         return f'color: {color}; font-weight: bold'
