@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Minimalistické CSS
+# Minimalistické CSS s opraveným parametrem
 st.markdown("""
     <style>
     .stButton>button {
@@ -21,14 +21,8 @@ st.markdown("""
         color: white;
         border: none;
     }
-    .stFooter {
-        font-size: 0.8em;
-        color: #6c757d;
-        text-align: center;
-        margin-top: 50px;
-    }
     </style>
-    """, unsafe_content_type=True)
+    """, unsafe_allow_html=True)
 
 # --- SIDEBAR S PODPISEM ---
 with st.sidebar:
@@ -36,7 +30,6 @@ with st.sidebar:
     st.info("Tento nástroj pomáhá PPC specialistům efektivně přetvářet briefy do formátu pro Google Ads Editor.")
     st.markdown("---")
     st.markdown(f"**Vytvořil:** Martin Kudrna, {datetime.now().year}")
-    # Zde můžeš datum aktualizace měnit ručně, aby uživatelé viděli, že na appce pracuješ
     st.markdown("**Poslední update:** 23. února 2026")
 
 # --- HLAVNÍ OBSAH ---
@@ -99,19 +92,4 @@ with st.container():
             df = pd.DataFrame([data])
             
             def color_len(val, max_l):
-                return 'background-color: #ffebee; color: #c62828' if len(str(val)) > max_l else ''
-
-            st.write("### Kontrola a stažení")
-            styled_df = df.style.applymap(lambda x: color_len(x, 30), subset=[f"Headline {i+1}" for i in range(15)])\
-                               .applymap(lambda x: color_len(x, 90), subset=[f"Description {i+1}" for i in range(4)])
-            st.dataframe(styled_df)
-
-            csv_buffer = io.StringIO()
-            df.to_csv(csv_buffer, index=False, encoding='utf-8')
-            
-            st.download_button(
-                label="📥 Stáhnout CSV pro Google Editor",
-                data=csv_buffer.getvalue(),
-                file_name=f"ppc_import_{ad_group}.csv",
-                mime="text/csv"
-            )
+                return 'background-color: #
