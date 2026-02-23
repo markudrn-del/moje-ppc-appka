@@ -5,7 +5,41 @@ import io
 st.set_page_config(page_title="PPC Inzerátovač", layout="wide")
 
 st.title("🚀 PPC Generátor pro Google Ads Editor")
-st.markdown("Vložte texty vygenerované AI a stáhněte si hotový soubor pro import.")
+
+# --- SEKCE 1: GENERÁTOR PROMPTU ---
+st.header("1. Příprava zadání pro Gemini")
+st.markdown("Zde si připravte text, který vložíte do svého placeného Gemini.")
+
+user_brief = st.text_area("Vložte text z webu nebo brief:", placeholder="Např. Prodáváme ekologické láhve na vodu...")
+
+master_prompt_template = """Předmět: Generování responzivních inzerátů ve vyhledávání (RSA)
+
+Jsi expert na PPC reklamu a copywriting. Tvým úkolem je vytvořit texty pro Google Ads na základě níže uvedeného zadání.
+
+Tvé úkoly:
+1. Vytvoř přesně 15 unikátních nadpisů (každý max. 30 znaků včetně mezer).
+2. Vytvoř přesně 4 unikátní popisky (každý max. 90 znaků včetně mezer).
+3. Nepoužívej vykřičníky v nadpisech.
+4. Zaměř se na přínosy pro zákazníka, CTA a USP.
+
+⚠️ KRITICKÝ POŽADAVEK NA KONTROLU:
+Než mi odpovíš, u každého řádku si poctivě spočítej znaky. Pokud nadpis přesahuje 30 znaků nebo popisek 90 znaků, přepiš ho tak, aby se do limitu vešel.
+
+Formát výstupu:
+Vypiš výsledky jako prostý seznam řádků bez odrážek, čísel a uvozovek. Nejdřív všech 15 nadpisů, pak hned pod ně 4 popisky. Každý text na nový řádek. Žádný jiný doprovodný text.
+
+Zadání:
+"""
+
+if user_brief:
+    full_prompt = master_prompt_template + user_brief
+    st.text_area("Hotový prompt (zkopírujte do Gemini):", full_prompt, height=200)
+    st.info("👆 Zkopírujte text výše, vložte ho do Gemini a pak se vraťte sem s výsledkem.")
+
+st.divider()
+
+# --- SEKCE 2: ZPRACOVÁNÍ VÝSLEDKŮ ---
+st.header("2. Formátování pro Google Editor")
 
 # Boční panel s nastavením
 st.sidebar.header("Nastavení kampaně")
@@ -13,65 +47,33 @@ campaign = st.sidebar.text_input("Název kampaně", "Kampaň_1")
 ad_group = st.sidebar.text_input("Název sestavy", "Sestava_1")
 final_url = st.sidebar.text_input("Finální URL", "https://www.priklad.cz")
 
-# Hlavní vstup textu
-st.subheader("1. Vložte texty od AI")
-raw_text = st.text_area("Vložte nadpisy (každý na nový řádek) a pod ně popisky:", 
-                        height=300, 
-                        placeholder="Nadpis 1\nNadpis 2\n...\nPopisek 1\nPopisek 2...")
+raw_text = st.text_area("Sem vložte 19 řádků od Gemini:", 
+                        height=250, 
+                        placeholder="Nadpis 1\nNadpis 2\n...")
 
 if raw_text:
     lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
     
-    # Rozdělení na nadpisy (prvních 15) a popisky (další 4)
     headlines = lines[:15]
     descriptions = lines[15:19]
     
-    # Doplnění prázdných hodnot, pokud jich je méně
     headlines += [""] * (15 - len(headlines))
     descriptions += [""] * (4 - len(descriptions))
 
-    # Vytvoření dat pro tabulku
-    data = {
-        "Campaign": campaign,
-        "Ad Group": ad_group,
-        "Final URL": final_url
-    }
-    
-    for i in range(15):
-        data[f"Headline {i+1}"] = headlines[i]
-    for i in range(4):
-        data[f"Description {i+1}"] = descriptions[i]
+    data = {"Campaign": campaign, "Ad Group": ad_group, "Final URL": final_url}
+    for i in range(15): data[f"Headline {i+1}"] = headlines[i]
+    for i in range(4): data[f"Description {i+1}"] = descriptions[i]
 
     df = pd.DataFrame([data])
 
-    # Funkce pro barvení buněk podle délky
     def color_length(val, max_len):
-        if len(str(val)) > max_len:
-            return 'background-color: #ff4b4b; color: white'
-        return ''
+        return 'background-color: #ff4b4b; color: white' if len(str(val)) > max_len else ''
 
-    st.subheader("2. Kontrola délky a náhled")
-    
-    # Aplikace stylu (st.dataframe nepodporuje barvy tak snadno, použijeme styler)
     styled_df = df.style.applymap(lambda x: color_length(x, 30), subset=[f"Headline {i+1}" for i in range(15)])\
                        .applymap(lambda x: color_length(x, 90), subset=[f"Description {i+1}" for i in range(4)])
 
     st.dataframe(styled_df)
 
-    # Validace délek pro varování
-    over_limit = any(len(h) > 30 for h in headlines) or any(len(d) > 90 for d in descriptions)
-    if over_limit:
-        st.error("⚠️ Pozor! Některé texty jsou příliš dlouhé (červené buňky). Google Editor je nepřijme.")
-
-    # Export do CSV
-    st.subheader("3. Export")
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False, encoding='utf-8')
-    csv_output = csv_buffer.getvalue()
-
-    st.download_button(
-        label="📥 Stáhnout CSV pro Google Editor",
-        data=csv_output,
-        file_name=f"export_ads_{ad_group}.csv",
-        mime="text/csv",
-    )
+    st.download_button("📥 Stáhnout CSV pro Google Editor", csv_buffer.getvalue(), f"export_{ad_group}.csv", "text/csv")
