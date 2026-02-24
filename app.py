@@ -1,7 +1,7 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# CSS PRO DOKONALÝ DESIGN A STŘEDOVÝ KURZOR
+# CSS PRO DESIGN A STŘEDOVÝ KURZOR
 st.markdown("""<style>
 .stTextArea textarea, .stTextInput input, 
 .stTextArea textarea:focus, .stTextInput input:focus,
@@ -66,4 +66,60 @@ if p_ex:
 # KROK 3
 if cp_ok:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
-    st.success("✅ Prompt zkopírován
+    # Krátké texty, aby se neuřízly
+    st.success("✅ Hotovo! Prompt je v paměti.")
+    st.info("👇 Vložte text z Gemini do pole níže.")
+    
+    ai_v = st.session_state.get("ai_in", "")
+    cl_v = "step-active" if not ai_v.strip() else ""
+    st.markdown(f'<div class="{cl_v}">', 1)
+    v = st.text_area("Vložte inzeráty z Gemini", key="ai_in", height=150)
+    st.markdown('</div>', 1)
+
+    url_v = st.session_state.get("final_url", "")
+    cl_u = "step-active" if (ai_v.strip() and not url_v.strip()) else ""
+    st.markdown(f'<div class="{cl_u}">', 1)
+    url = st.text_input("URL webu (Povinné)", placeholder="https://web.cz", key="final_url")
+    st.markdown('</div>', 1)
+
+    if v.strip() and url.strip():
+        st.markdown('<div class="active-btn">', 1)
+        if st.button("✨ Vygenerovat inzeráty"):
+            ls = [x.strip() for x in v.split('\n') if x.strip()]
+            dt = []
+            for i, t in enumerate(ls):
+                tp = "Nadpis" if i < 15 else "Popis"
+                lim = 30 if tp == "Nadpis" else 90
+                row = {"Typ": tp, "Text": t, "Zbývá": lim - len(str(t))}
+                dt.append(row)
+            st.session_state.d = pd.DataFrame(dt)
+            st.session_state.show_results = True
+            st.rerun()
+        st.markdown('</div>', 1)
+    else:
+        st.button("Vygenerovat (vyplňte pole výše)", disabled=True)
+
+# VÝSTUPY
+if st.session_state.get("show_results") and "d" in st.session_state:
+    st.markdown('<div style="margin-top:30px;"></div>', 1)
+    df = st.session_state.d
+    # Dynamický přepočet
+    df["Zbývá"] = df.apply(lambda r: (30 if r["Typ"]=="Nadpis" else 90) - len(str(r["Text"])), axis=1)
+    st.data_editor(df, use_container_width=True, key="ed", hide_index=True)
+    
+    h_l = df[df["Typ"]=="Nadpis"]["Text"].tolist()
+    d_l = df[df["Typ"]=="Popis"]["Text"].tolist()
+    f_u = st.session_state.get("final_url", "")
+    
+    st.subheader("👀 Náhledy")
+    cols = st.columns(2)
+    for i in range(4):
+        with cols[i%2]:
+            sh = random.sample(h_l, min(3, len(h_l))) if h_l else ["N"]
+            sd = random.sample(d_l, min(2, len(d_l))) if d_l else ["P"]
+            st.markdown(f'<div style="border:1px solid #ddd;padding:10px;border-radius:8px;background:white;margin-bottom:10px;"><small style="color:gray;">{f_u}</small><br><b style="color:blue;">{" - ".join(sh)}</b><br>{" ".join(sd)}</div>', 1)
+    
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf) as wr:
+        pd.DataFrame([{"Final URL": f_u, **{f"Headline {j+1}": (h_l[j] if j<len(h_l) else "") for j in range(15)}, **{f"Description {j+1}": (d_l[j] if j<len(d_l) else "") for j in range(4)}}]).to_excel(wr, index=False)
+    st.download_button("📥 Stáhnout EXCEL", buf.getvalue(), "ppc_export.xlsx")
