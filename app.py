@@ -1,21 +1,24 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# CSS PRO SROVNÁNÍ VÝŠKY, ZÁKAZ ČERVENÉ A POČÍTADLO
+# CSS PRO DOKONALÉ ZAROVNÁNÍ A ZÁKAZ ČERVENÉ
 st.markdown("""<style>
-/* Zákaz červené barvy při kliknutí/focusu pro všechna pole */
-.stTextArea textarea:focus, .stTextInput input:focus,
-.stTextArea textarea, .stTextInput input { 
+/* Zákaz červené barvy a stínů */
+.stTextArea textarea, .stTextInput input, 
+.stTextArea textarea:focus, .stTextInput input:focus { 
     border-color: #d1d5db !important; box-shadow: none !important; 
     background-color: white !important; color: black !important;
 }
-/* Srovnání výšky USPs pole s Briefem */
-div[data-testid="stTextInput"] input { height: 100px !important; }
-/* Zelené podbarvení aktivního kroku */
+/* Srovnání výšky a pozice polí v prvním řádku */
+div[data-testid="column"] > div { vertical-align: bottom !important; }
+.stTextArea textarea { height: 100px !important; }
+.stTextInput input { height: 100px !important; }
+
+/* Aktivní zelené prvky */
 .step-active textarea, .step-active input { 
     background-color: #f0fff4 !important; border: 1px solid #28a745 !important; 
 }
-div.stButton>button { width: 100%; font-weight: bold; height: 3em; }
+div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; }
 .active-btn button { background-color: #28a745 !important; color: white !important; }
 .custom-box { background:#f9f9f9; border:1px solid #ddd; padding:12px; height:120px; overflow-y:scroll; font-size:16px; }
 </style>""", unsafe_allow_html=True)
@@ -31,17 +34,17 @@ cp_ok = st.session_state.get("cp", False)
 with c1:
     cl1 = "step-active" if (br_v.strip() and not p_ex) else ""
     st.markdown(f'<div class="{cl1}">', 1)
-    b = st.text_area("1. Brief nebo web", height=100, key="br")
+    b = st.text_area("1. Brief nebo web", key="br")
     st.markdown('</div>', 1)
 with c2:
-    # USPs s vynucenou výškou přes CSS výše
+    # USPs pole má nyní v CSS vynucenou výšku 100px
     u = st.text_input("2. USPs (volitelné)", key="usps_in")
 
 # Tlačítko 1
 b1_cl = "active-btn" if (b.strip() and not p_ex) else ""
 st.markdown(f'<div class="{b1_cl}">', 1)
 if st.button("🚀 Vygenerovat prompt"):
-    st.session_state.p = (f"Jsi PPC copywriter. RSA (15 nadpisů, 4 popisky). "
+    st.session_state.p = (f"Jsi PPC copywriter. RSA (15 nadpisů do 30 zn, 4 popisky do 90 zn). "
                          f"Brief: {b}. USPs: {u}. Jen texty, každý nový řádek.")
     st.session_state.cp = False
     st.rerun()
@@ -60,7 +63,7 @@ if p_ex:
         st.rerun()
     st.markdown('</div>', 1)
 
-# KROK 3: VLOŽENÍ VÝSLEDKŮ
+# KROK 3: VLOŽENÍ A URL
 if cp_ok:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
     st.success("✅ Prompt zkopírován! Vložte jej do Gemini.")
@@ -77,6 +80,7 @@ if cp_ok:
     url = st.text_input("4. URL webu (Povinné)", placeholder="https://www.web.cz", key="final_url")
     st.markdown('</div>', 1)
 
+    # Validace před generováním
     if v.strip() and url.strip():
         st.markdown('<div class="active-btn">', 1)
         if st.button("✨ Vygenerovat inzeráty"):
@@ -84,21 +88,31 @@ if cp_ok:
             data = []
             for i, t in enumerate(ls):
                 typ = "Nadpis" if i < 15 else "Popis"
-                data.append({"Typ": typ, "Text": t, "Znaků": len(t)})
+                limit = 30 if typ == "Nadpis" else 90
+                data.append({"Typ": typ, "Text": t, "Zbývá": limit - len(t)})
             st.session_state.d = pd.DataFrame(data)
             st.session_state.show_results = True
             st.rerun()
         st.markdown('</div>', 1)
     else:
-        st.button("Vygenerovat (vyplňte pole výše)", disabled=True)
+        if v.strip() and not url.strip():
+            st.error("⚠️ Prosím, vyplňte URL webu (Krok 4).")
+        st.button("Vygenerovat inzeráty (vyplňte všechna pole)", disabled=True)
 
-# KROK 4: VÝSTUPY S POČÍTAČEM
+# KROK 4: VÝSTUPY
 if st.session_state.get("show_results") and "d" in st.session_state:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
-    # Přidání výpočtu znaků při editaci
+    
+    # Dynamický výpočet zbývajících znaků v editoru
     df = st.session_state.d
-    df["Znaků"] = df["Text"].apply(len)
-    st.data_editor(df, use_container_width=True, key="ed", hide_index=True)
+    def calc_rem(row):
+        limit = 30 if row["Typ"] == "Nadpis" else 90
+        return limit - len(str(row["Text"]))
+    
+    df["Zbývá"] = df.apply(calc_rem, axis=1)
+    
+    st.data_editor(df, use_container_width=True, key="ed", hide_index=True,
+                   column_config={"Zbývá": st.column_config.NumberColumn(format="%d")})
     
     h_l = df[df["Typ"]=="Nadpis"]["Text"].tolist()
     d_l = df[df["Typ"]=="Popis"]["Text"].tolist()
@@ -108,8 +122,8 @@ if st.session_state.get("show_results") and "d" in st.session_state:
     cols = st.columns(2)
     for i in range(4):
         with cols[i%2]:
-            sh = random.sample(h_l, min(3, len(h_l))) if h_l else ["N"]
-            sd = random.sample(d_l, min(2, len(d_l))) if d_l else ["P"]
+            sh = random.sample(h_l, min(3, len(h_l))) if h_l else ["Nadpis"]
+            sd = random.sample(d_l, min(2, len(d_l))) if d_l else ["Popis"]
             st.markdown(f"""<div style="border:1px solid #ddd;padding:10px;border-radius:8px;background:white;margin-bottom:10px;">
                 <small style="color:gray;">{f_u}</small><br>
                 <b style="color:blue;">{" - ".join(sh)}</b><br>{ " ".join(sd) }</div>""", 1)
@@ -119,4 +133,4 @@ if st.session_state.get("show_results") and "d" in st.session_state:
     for i in range(1, 5): exp[f"Description {i}"] = d_l[i-1] if i-1 < len(d_l) else ""
     buf = io.BytesIO()
     with pd.ExcelWriter(buf) as wr: pd.DataFrame([exp]).to_excel(wr, index=False)
-    st.download_button("📥 Stáhnout EXCEL", buf.getvalue(), "ppc.xlsx")
+    st.download_button("📥 Stáhnout EXCEL", buf.getvalue(), "ppc_import.xlsx")
