@@ -3,12 +3,9 @@ import pandas as pd
 import io
 import random
 
-st.set_page_config(
-    layout="wide",
-    page_title="PPC Studio"
-)
+st.set_page_config(layout="wide")
 
-# --- CSS STYLY ---
+# CSS
 st.markdown(
     """
     <style>
@@ -33,79 +30,49 @@ st.markdown(
 
 st.title("🦁 PPC Publicis Studio")
 
-# --- 1. KROK ---
+# 1. KROK
 c1, c2 = st.columns(2)
 with c1:
     b_txt = st.text_area("Brief", height=100)
 with c2:
-    u_txt = st.text_input("Vlastní USPs")
+    u_txt = st.text_input("USPs")
 
 if st.button("🚀 Generovat PRO prompt"):
     if b_txt:
-        u_p = f" USPs: {u_txt}." if u_txt else ""
         p_f = (
-            f"Jsi copywriter. RSA (15 nadpisů, 4 popisky). "
-            f"Brief: {b_txt}.{u_p} "
-            f"FORMÁT: Jen texty, každý na nový řádek. "
-            f"BEZ čísel. 15 nadpisů, pak 4 popisky."
+            f"Jsi copywriter. RSA. "
+            f"Brief: {b_txt}. {u_txt} "
+            f"FORMÁT: Jen texty, 15 nadpisů, 4 popisky."
         )
         st.session_state.current_prompt = p_f
 
 if "current_prompt" in st.session_state:
-    st.info("Krok 1: Zkopírujte prompt:")
-    st.code(
-        st.session_state.current_prompt,
-        language="text"
-    )
+    st.code(st.session_state.current_prompt)
 
 st.markdown("---")
 
-# --- 2. KROK ---
+# 2. KROK
 u_link = st.text_input("URL", "https://publicis.cz")
-v_raw = st.text_area(
-    "Krok 2: Vložte texty z AI",
-    height=150,
-    key="ai_input"
-)
+v_raw = st.text_area("Vložte texty z AI", key="ai_input")
 
 if st.session_state.ai_input.strip():
     if st.button("✨ Vygenerovat inzeráty"):
         raw = st.session_state.ai_input
         ls = [x.strip() for x in raw.split('\n') if x.strip()]
         rows = []
-        for i in range(len(ls)):
-            t = ls[i]
+        for i, t in enumerate(ls):
             tp = "Nadpis" if i < 15 else "Popis"
             lim = 30 if tp == "Nadpis" else 90
-            rows.append(
-                {"Typ": tp, "Text": t, "Zbyva": lim - len(t)}
-            )
+            rows.append({"Typ": tp, "Text": t, "Zbyva": lim - len(t)})
         st.session_state.df_data = pd.DataFrame(rows)
         st.rerun()
 
-# --- 3. KROK ---
-def prepocet():
-    if "ppc_editor" in st.session_state:
-        df = st.session_state.df_data
-        ed = st.session_state["ppc_editor"]
-        for r, h in ed.get("edited_rows", {}).items():
-            for c, v in h.items():
-                df.at[int(r), c] = v
-        # Bezpečný výpočet
-        df["Zbyva"] = df.apply(
-            lambda x: (30 if x["Typ"]=="Nadpis" else 90) - len(str(x["Text"])),
-            axis=1
-        )
-        st.session_state.df_data = df
-
+# 3. KROK
 if "df_data" in st.session_state:
     st.markdown("---")
     st.data_editor(
         st.session_state.df_data,
-        use_container_width=True,
-        hide_index=True,
-        key="ppc_editor",
-        on_change=prepocet
+        key="ppc_editor"
     )
 
     st.subheader("👀 Náhledy")
@@ -117,5 +84,36 @@ if "df_data" in st.session_state:
         cols = st.columns(2)
         for i in range(6):
             with cols[i % 2]:
-                sh = random.sample(h_l, min(3, len(h_l)))
-                sd = random.sample(d_l, min(2,
+                # BEZPEČNÉ SAMPLOVÁNÍ NA VÍCE ŘÁDCÍCH
+                cnt_h = len(h_l)
+                n_h = min(3, cnt_h)
+                sh = random.sample(h_l, n_h)
+                
+                cnt_d = len(d_l)
+                n_d = min(2, cnt_d)
+                sd = random.sample(d_l, n_d) if d_l else [""]
+                
+                h_s = " – ".join(sh)
+                d_s = " ".join(sd)
+                
+                st.markdown(
+                    f'<div class="ad-preview">'
+                    f'<div style="color:gray;">{u_link}</div>'
+                    f'<div style="color:blue;">{h_s}</div>'
+                    f'<div>{d_s}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+
+    st.markdown("---")
+    # Export
+    out = {"Campaign": "C1", "URL": u_link}
+    for i in range(1, 16):
+        out[f"Headline {i}"] = h_l[i-1] if i-1 < len(h_l) else ""
+    for i in range(1, 5):
+        out[f"Description {i}"] = d_l[i-1] if i-1 < len(d_l) else ""
+    
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf) as wr:
+        pd.DataFrame([out]).to_excel(wr, index=False)
+    st.download_button("📥 Excel", buf.getvalue(), "ppc.xlsx")
