@@ -1,86 +1,74 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# FINÁLNÍ NAVIGAČNÍ CSS
+# AGRESIVNÍ CSS PRO VYNUCENÍ STYLU
 st.markdown("""<style>
-/* 1. GLOBÁLNÍ RESET */
-input, textarea, [data-baseweb="input"], [data-baseweb="textarea"] {
-    border-color: #d1d5db !important; box-shadow: none !important;
-}
-
-/* 2. STEJNÁ VÝŠKA PRO VŠECHNA POLE (80px) */
-.stTextArea textarea { 
-    height: 80px !important; 
-    min-height: 80px !important; 
-    max-height: 80px !important; 
-    resize: none !important; 
-}
-
-div[data-testid="stTextInput"] div[data-baseweb="input"] {
-    height: 80px !important; 
+/* 1. RESET A JEDNOTNÁ VÝŠKA PRO VŠECHNA POLE */
+div[data-baseweb="base-input"], .stTextArea textarea, div[data-testid="stTextInput"] input {
+    height: 80px !important;
     min-height: 80px !important;
+    max-height: 80px !important;
+    border-radius: 8px !important;
+}
+
+/* 2. ZAROVNÁNÍ SLOUPCŮ V ÚVODU */
+[data-testid="column"] {
     display: flex !important;
-    align-items: center !important;
-}
-
-/* Centrování a padding */
-input, textarea {
-    padding: 15px !important;
-    font-size: 16px !important;
-}
-
-/* 3. SLOUPCE - ZAROVNÁNÍ NA SPODEK PRO LABELY */
-[data-testid="column"] { 
-    display: flex !important; 
-    flex-direction: column !important; 
+    flex-direction: column !important;
     justify-content: flex-end !important;
 }
 
-/* 4. CHYTRÁ ZELENÁ NAVIGACE (SEMAFOR) */
-.step-active textarea, .step-active input { 
-    background-color: #e8f5e9 !important; 
-    border: 2px solid #28a745 !important; 
+/* 3. BARVY PRO NAVIGACI (VYNUCENÉ PŘES DIVY) */
+/* Každý "step-active" div teď obarví vše uvnitř sebe */
+.step-active div[data-baseweb="base-input"], 
+.step-active textarea, 
+.step-active input {
+    background-color: #e8f5e9 !important;
+    border: 2px solid #28a745 !important;
 }
 
-/* 5. TLAČÍTKA A PROMPT BOX */
-div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; }
-.active-btn button { background-color: #28a745 !important; color: white !important; border: none !important; }
+/* 4. ÚPRAVA TEXTU A POLÍ */
+textarea, input {
+    font-size: 16px !important;
+    padding: 15px !important;
+    resize: none !important;
+}
+
+/* 5. TLAČÍTKA */
+div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; border-radius: 8px !important; }
+.active-btn button { background-color: #28a745 !important; color: white !important; }
 
 .custom-box { 
     background:#f9f9f9; border:1px solid #ddd; padding:15px; 
-    height:115px; overflow-y:scroll; 
-    font-size:16px !important; font-weight: bold; line-height: 1.4;
+    height:115px; overflow-y:scroll; font-weight: bold;
 }
 </style>""", unsafe_allow_html=True)
 
 st.title("🦁 PPC Studio")
 
-# --- KROK 1: VSTUPY PRO PROMPT ---
-c1, c2 = st.columns(2)
+# --- KROK 1: VSTUPY ---
 br_v = st.session_state.get("br", "").strip()
 p_ex = "p" in st.session_state
 cp_ok = st.session_state.get("cp", False)
 
+c1, c2 = st.columns(2)
 with c1:
-    # NAVIGACE 1: Zelené, pokud je brief prázdný
+    # ZELENÁ 1: Brief (pokud je prázdný)
     cl1 = "step-active" if not br_v else ""
-    st.markdown(f'<div class="{cl1}">', 1)
-    b = st.text_area("1. Vložte brief nebo obsah stránky", key="br")
-    st.markdown('</div>', 1)
+    st.markdown(f'<div class="{cl1}">', unsafe_allow_html=True)
+    b = st.text_area("Vložte brief nebo obsah stránky", key="br")
+    st.markdown('</div>', unsafe_allow_html=True)
 with c2:
-    # USPs jsou volitelné, nebudeme je barvit zeleně, aby nerušily flow
-    st.text_input("2. USPs (volitelné)", key="usps_in")
+    st.text_input("USPs (volitelné)", key="usps_in")
 
 b1_cl = "active-btn" if (br_v and not p_ex) else ""
 st.markdown(f'<div class="{b1_cl}">', 1)
 if st.button("Vygenerovat prompt"):
     st.session_state.p = (
-        f"Jsi nejlepší copywriter na PPC reklamy, které musí zvyšovat výkon a CTR. "
-        f"Vytvoř RSA inzeráty (15 nadpisů a 4 popisky). "
-        f"!!! POZOR: STRIKTNĚ DODRŽUJ DÉLKY: Nadpis MAX 30 znaků, Popis MAX 90 znaků. "
-        f"Pokud limit překročíš byť o jeden znak, tvoje práce bude smazána. !!! "
-        f"Generuj pouze čisté texty, každý na nový řádek. Nepoužívej číslování. "
-        f"Zde je brief/obsah: {b}. USPs: {st.session_state.usps_in}."
+        f"Jsi nejlepší PPC copywriter. Vytvoř RSA (15 nadpisů, 4 popisky). "
+        f"STRIKTNĚ: Nadpis max 30, Popis max 90 znaků. "
+        f"Generuj jen čistý text bez číslování. "
+        f"Brief: {b}. USPs: {st.session_state.usps_in}."
     )
     st.session_state.cp = False
     st.rerun()
@@ -93,67 +81,46 @@ if p_ex:
     
     b2_cl = "active-btn" if not cp_ok else ""
     st.markdown(f'<div class="{b2_cl}">', 1)
-    if st.button("📋 Zkopírovat prompt do schránky"):
-        js = f'navigator.clipboard.writeText("{st.session_state.p}")'
-        st.write(f'<script>{js}</script>', unsafe_allow_html=True)
+    if st.button("📋 Zkopírovat prompt"):
+        st.write(f'<script>navigator.clipboard.writeText("{st.session_state.p}")</script>', unsafe_allow_html=True)
         st.session_state.cp = True
         st.rerun()
     st.markdown('</div>', 1)
 
-# --- KROK 3: VLOŽENÍ VÝSLEDKŮ A DYNAMICKÉ NAVEDENÍ ---
+# --- KROK 3: VÝSLEDKY A URL ---
 if cp_ok:
-    st.markdown('<div style="margin-top:10px;"></div>', 1)
-    st.warning("🚀 Otevřete Gemini a vložte do ní zkopírovaný prompt.")
-    
     ai_v = st.session_state.get("ai_in", "").strip()
     url_v = st.session_state.get("final_url", "").strip()
     
-    # NAVIGACE 2: Zelené, pokud jsou inzeráty prázdné
+    st.markdown("---")
+    
+    # ZELENÁ 2: Inzeráty z Gemini (pokud jsou prázdné)
     cl_v = "step-active" if not ai_v else ""
-    st.markdown(f'<div class="{cl_v}">', 1)
+    st.markdown(f'<div class="{cl_v}">', unsafe_allow_html=True)
     v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in")
-    st.markdown('</div>', 1)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # NAVIGACE 3: Zelené, pokud už jsou inzeráty, ale chybí URL
+    # ZELENÁ 3: URL (pokud inzeráty jsou, ale URL chybí)
     cl_u = "step-active" if (ai_v and not url_v) else ""
-    st.markdown(f'<div class="{cl_u}">', 1)
+    st.markdown(f'<div class="{cl_u}">', unsafe_allow_html=True)
     url = st.text_input("URL webu (Povinné)", placeholder="https://web.cz", key="final_url")
-    st.markdown('</div>', 1)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    if ai_v and not url_v:
+        st.error("❗ Prosím, vyplňte URL webu pro dokončení inzerátů.")
 
     if ai_v and url_v:
         st.markdown('<div class="active-btn">', 1)
         if st.button("✨ Vygenerovat inzeráty"):
             ls = [x.strip() for x in v.split('\n') if x.strip()]
-            dt = []
-            for i, t in enumerate(ls):
-                tp = "Nadpis" if i < 15 else "Popis"
-                lim = 30 if tp == "Nadpis" else 90
-                dt.append({"Typ": tp, "Text": t, "Zbývá": lim - len(str(t))})
+            dt = [{"Typ": "Nadpis" if i < 15 else "Popis", "Text": t} for i, t in enumerate(ls)]
             st.session_state.d = pd.DataFrame(dt)
             st.session_state.show_results = True
             st.rerun()
         st.markdown('</div>', 1)
 
-# --- VÝSTUPY ---
-if st.session_state.get("show_results") and "d" in st.session_state:
-    st.markdown('<div style="margin-top:30px;"></div>', 1)
+# --- TABULKA ---
+if st.session_state.get("show_results"):
     df = st.session_state.d
     df["Zbývá"] = df.apply(lambda r: (30 if r["Typ"]=="Nadpis" else 90) - len(str(r["Text"])), axis=1)
-    st.data_editor(df, use_container_width=True, key="ed", hide_index=True)
-    
-    h_l = df[df["Typ"]=="Nadpis"]["Text"].tolist()
-    d_l = df[df["Typ"]=="Popis"]["Text"].tolist()
-    f_u = st.session_state.get("final_url", "")
-    
-    st.subheader("👀 Náhledy inzerátů")
-    cols = st.columns(2)
-    for i in range(4):
-        with cols[i%2]:
-            sh = random.sample(h_l, min(3, len(h_l))) if h_l else ["N"]
-            sd = random.sample(d_l, min(2, len(d_l))) if d_l else ["P"]
-            st.markdown(f'<div style="border:1px solid #ddd;padding:10px;border-radius:8px;background:white;margin-bottom:10px;"><small style="color:gray;">{f_u}</small><br><b style="color:blue;">{" - ".join(sh)}</b><br>{" ".join(sd)}</div>', 1)
-    
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf) as wr:
-        pd.DataFrame([{"Final URL": f_u, **{f"Headline {j+1}": (h_l[j] if j<len(h_l) else "") for j in range(15)}, **{f"Description {j+1}": (d_l[j] if j<len(d_l) else "") for j in range(4)}}]).to_excel(wr, index=False)
-    st.download_button("📥 Stáhnout EXCEL", buf.getvalue(), "ppc_export.xlsx")
+    st.data_editor(df, use_container_width=True, hide_index=True)
