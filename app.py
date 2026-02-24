@@ -4,17 +4,6 @@ import io, random
 
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# --- CUSTOM CSS PRO ZMENŠENÍ PROMPTU ---
-st.markdown("""
-    <style>
-    /* Omezení výšky pro code block */
-    .stCodeBlock div {
-        max-height: 150px !important;
-        overflow-y: auto !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 st.title("🦁 PPC Publicis Studio")
 
 # --- 1. KROK: VSTUPY ---
@@ -33,9 +22,27 @@ if st.button("🚀 Generovat PRO prompt"):
             f"FORMÁT VÝSTUPU: Vypiš pouze texty, každý na nový řádek. "
             f"BEZ čísel, BEZ odrážek. Nejdřív 15 nadpisů, pak 4 popisky."
         )
-        st.info("Zkopírujte prompt (pole má posuvník):")
-        # Pole je nyní omezeno pomocí CSS výše
-        st.code(p_f, language="text")
+        
+        st.info("Zkopírujte prompt níže:")
+        
+        # AGRESIVNÍ ZMENŠENÍ POMOCÍ HTML/CSS
+        st.markdown(f"""
+            <div style="
+                background-color: #f0f2f6; 
+                border-radius: 5px; 
+                padding: 10px; 
+                font-family: monospace; 
+                font-size: 12px; 
+                height: 80px; 
+                overflow-y: scroll; 
+                border: 1px solid #d1d5db;
+                white-space: pre-wrap;
+                user-select: all;
+            ">
+                {p_f}
+            </div>
+            <p style="font-size: 11px; color: gray;">Tip: Klikněte do boxu a použijte Ctrl+A pro rychlé zkopírování.</p>
+        """, unsafe_allow_html=True)
     else:
         st.warning("Vložte brief.")
 
@@ -64,3 +71,47 @@ if st.button("✅ Načíst do tabulky"):
             tp = "Nadpis" if i < 15 else "Popis"
             lim = 30 if tp == "Nadpis" else 90
             rows.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
+        st.session_state.df_data = pd.DataFrame(rows)
+        st.rerun()
+
+if "df_data" in st.session_state:
+    st.data_editor(st.session_state.df_data, use_container_width=True, hide_index=True, key="ppc_editor", on_change=prepocet)
+
+    # --- 3. KROK: NÁHLEDY ---
+    st.markdown("---")
+    st.subheader("👀 Náhledy inzerátů (6 kombinací)")
+    
+    df_f = st.session_state.df_data
+    h_l = df_f[df_f["Typ"]=="Nadpis"]["Text"].tolist()
+    d_l = df_f[df_f["Typ"]=="Popis"]["Text"].tolist()
+
+    if len(h_l) > 2 and len(d_l) > 1:
+        cols = st.columns(2)
+        for i in range(6):
+            with cols[i % 2]:
+                sh = random.sample(h_l, 3) if len(h_l)>=3 else h_l
+                sd = random.sample(d_l, 2) if len(d_l)>=2 else d_l
+                st.markdown(f"""
+                <div style="border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: white; font-family: Arial, sans-serif;">
+                    <div style="color: #202124; font-size: 12px; margin-bottom: 4px;">Sponzorováno • {u_link.replace('https://','')}</div>
+                    <div style="color: #1a0dab; font-size: 18px; margin-bottom: 4px; line-height: 1.2; font-weight: 400;">
+                        {sh[0]} – {sh[1]} – {sh[2] if len(sh)>2 else ""}
+                    </div>
+                    <div style="color: #4d5156; font-size: 13px; line-height: 1.4;">
+                        {sd[0]} {sd[1] if len(sd)>1 else ""}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # --- 4. KROK: EXPORT ---
+    st.markdown("---")
+    out = {"Campaign": "Kampaň 1", "Ad Group": "Sestava 1", "Final URL": u_link}
+    for i in range(1, 16):
+        out[f"Headline {i}"] = h_l[i-1] if i-1 < len(h_l) else ""
+    for i in range(1, 5):
+        out[f"Description {i}"] = d_l[i-1] if i-1 < len(d_l) else ""
+    
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='xlsxwriter') as wr:
+        pd.DataFrame([out]).to_excel(wr, index=False)
+    st.download_button("📥 Stáhnout EXCEL", buf.getvalue(), "ppc_export.xlsx")
