@@ -1,43 +1,42 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# FIXNÍ CSS PRO NAVÁDĚNÍ A STEJNOU VÝŠKU POLÍ
+# FINÁLNÍ NAVIGAČNÍ CSS
 st.markdown("""<style>
 /* 1. GLOBÁLNÍ RESET */
 input, textarea, [data-baseweb="input"], [data-baseweb="textarea"] {
     border-color: #d1d5db !important; box-shadow: none !important;
 }
 
-/* 2. JEDNOTNÁ VÝŠKA 75px PRO VŠECHNA POLE */
+/* 2. STEJNÁ VÝŠKA PRO VŠECHNA POLE (80px) */
 .stTextArea textarea { 
-    height: 75px !important; 
-    min-height: 75px !important; 
-    max-height: 75px !important; 
+    height: 80px !important; 
+    min-height: 80px !important; 
+    max-height: 80px !important; 
     resize: none !important; 
 }
 
 div[data-testid="stTextInput"] div[data-baseweb="input"] {
-    height: 75px !important; 
-    min-height: 75px !important;
+    height: 80px !important; 
+    min-height: 80px !important;
     display: flex !important;
     align-items: center !important;
 }
 
-/* Padding a font */
+/* Centrování a padding */
 input, textarea {
     padding: 15px !important;
     font-size: 16px !important;
-    line-height: 1.4 !important;
 }
 
-/* 3. SLOUPCE A ZAROVNÁNÍ */
+/* 3. SLOUPCE - ZAROVNÁNÍ NA SPODEK PRO LABELY */
 [data-testid="column"] { 
     display: flex !important; 
     flex-direction: column !important; 
     justify-content: flex-end !important;
 }
 
-/* 4. DYNAMICKÁ ZELENÁ NAVIGACE */
+/* 4. CHYTRÁ ZELENÁ NAVIGACE (SEMAFOR) */
 .step-active textarea, .step-active input { 
     background-color: #e8f5e9 !important; 
     border: 2px solid #28a745 !important; 
@@ -49,44 +48,45 @@ div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; }
 
 .custom-box { 
     background:#f9f9f9; border:1px solid #ddd; padding:15px; 
-    height:110px; overflow-y:scroll; 
-    font-size:16px !important; font-weight: bold;
+    height:115px; overflow-y:scroll; 
+    font-size:16px !important; font-weight: bold; line-height: 1.4;
 }
 </style>""", unsafe_allow_html=True)
 
 st.title("🦁 PPC Studio")
 
-# KROK 1: VSTUPY PRO PROMPT
+# --- KROK 1: VSTUPY PRO PROMPT ---
 c1, c2 = st.columns(2)
-br_v = st.session_state.get("br", "")
+br_v = st.session_state.get("br", "").strip()
 p_ex = "p" in st.session_state
 cp_ok = st.session_state.get("cp", False)
 
 with c1:
-    # Zelené dokud není vygenerován prompt
-    cl1 = "step-active" if (not p_ex) else ""
+    # NAVIGACE 1: Zelené, pokud je brief prázdný
+    cl1 = "step-active" if not br_v else ""
     st.markdown(f'<div class="{cl1}">', 1)
     b = st.text_area("1. Vložte brief nebo obsah stránky", key="br")
     st.markdown('</div>', 1)
 with c2:
+    # USPs jsou volitelné, nebudeme je barvit zeleně, aby nerušily flow
     st.text_input("2. USPs (volitelné)", key="usps_in")
 
-b1_cl = "active-btn" if (b.strip() and not p_ex) else ""
+b1_cl = "active-btn" if (br_v and not p_ex) else ""
 st.markdown(f'<div class="{b1_cl}">', 1)
 if st.button("Vygenerovat prompt"):
     st.session_state.p = (
         f"Jsi nejlepší copywriter na PPC reklamy, které musí zvyšovat výkon a CTR. "
         f"Vytvoř RSA inzeráty (15 nadpisů a 4 popisky). "
-        f"!!! STRIKTNĚ DODRŽUJ DÉLKY ZNAKŮ: Nadpis MAX 30 znaků, Popis MAX 90 znaků. "
-        f"Pokud limit překročíš, text je nepoužitelný. !!! "
-        f"Generuj pouze čisté texty, každý na nový řádek. Nepoužívej žádné číslování. "
+        f"!!! POZOR: STRIKTNĚ DODRŽUJ DÉLKY: Nadpis MAX 30 znaků, Popis MAX 90 znaků. "
+        f"Pokud limit překročíš byť o jeden znak, tvoje práce bude smazána. !!! "
+        f"Generuj pouze čisté texty, každý na nový řádek. Nepoužívej číslování. "
         f"Zde je brief/obsah: {b}. USPs: {st.session_state.usps_in}."
     )
     st.session_state.cp = False
     st.rerun()
 st.markdown('</div>', 1)
 
-# KROK 2: PROMPT A KOPÍROVÁNÍ
+# --- KROK 2: PROMPT ---
 if p_ex:
     st.markdown('<div style="margin-top:15px;"></div>', 1)
     st.markdown(f'<div class="custom-box">{st.session_state.p}</div>', 1)
@@ -100,27 +100,27 @@ if p_ex:
         st.rerun()
     st.markdown('</div>', 1)
 
-# KROK 3: VLOŽENÍ VÝSLEDKŮ A LOGICKÉ NAVEDENÍ NA URL
+# --- KROK 3: VLOŽENÍ VÝSLEDKŮ A DYNAMICKÉ NAVEDENÍ ---
 if cp_ok:
     st.markdown('<div style="margin-top:10px;"></div>', 1)
     st.warning("🚀 Otevřete Gemini a vložte do ní zkopírovaný prompt.")
     
-    ai_v = st.session_state.get("ai_in", "")
-    url_v = st.session_state.get("final_url", "")
+    ai_v = st.session_state.get("ai_in", "").strip()
+    url_v = st.session_state.get("final_url", "").strip()
     
-    # Navádění: Pokud chybí inzeráty, svítí inzeráty. Pokud jsou inzeráty, svítí URL.
-    cl_v = "step-active" if not ai_v.strip() else ""
+    # NAVIGACE 2: Zelené, pokud jsou inzeráty prázdné
+    cl_v = "step-active" if not ai_v else ""
     st.markdown(f'<div class="{cl_v}">', 1)
     v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in")
     st.markdown('</div>', 1)
 
-    # Tady se děje to navedení: Zezelená, když uživatel vyplnil inzeráty, ale ještě nemá URL
-    cl_u = "step-active" if (ai_v.strip() and not url_v.strip()) else ""
+    # NAVIGACE 3: Zelené, pokud už jsou inzeráty, ale chybí URL
+    cl_u = "step-active" if (ai_v and not url_v) else ""
     st.markdown(f'<div class="{cl_u}">', 1)
     url = st.text_input("URL webu (Povinné)", placeholder="https://web.cz", key="final_url")
     st.markdown('</div>', 1)
 
-    if v.strip() and url.strip():
+    if ai_v and url_v:
         st.markdown('<div class="active-btn">', 1)
         if st.button("✨ Vygenerovat inzeráty"):
             ls = [x.strip() for x in v.split('\n') if x.strip()]
@@ -134,7 +134,7 @@ if cp_ok:
             st.rerun()
         st.markdown('</div>', 1)
 
-# VÝSTUPY (Tabulka, Náhledy)
+# --- VÝSTUPY ---
 if st.session_state.get("show_results") and "d" in st.session_state:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
     df = st.session_state.d
