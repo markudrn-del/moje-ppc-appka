@@ -3,7 +3,6 @@ st.set_page_config(layout="wide", page_title="PPC Studio")
 
 # CSS PRO DOKONALÝ DESIGN A STŘEDOVÝ KURZOR
 st.markdown("""<style>
-/* 1. ZÁKAZ ČERVENÉ A STÍNŮ VŠUDE */
 .stTextArea textarea, .stTextInput input, 
 .stTextArea textarea:focus, .stTextInput input:focus,
 .stTextArea [data-baseweb="textarea"], .stTextInput [data-baseweb="input"] { 
@@ -11,32 +10,24 @@ st.markdown("""<style>
     box-shadow: none !important; 
     background-color: white !important;
 }
-
-/* 2. SROVNÁNÍ POLÍ A KURZOR NA STŘED */
 .stTextArea textarea { height: 100px !important; }
 .stTextInput input { 
     height: 100px !important; 
     padding: 0 15px !important; 
-    display: flex !important;
-    align-items: center !important;
+    line-height: 100px !important;
 }
-
-/* 3. ZELENÁ NAVIGACE (AKTIVNÍ KROK) */
 .step-active textarea, .step-active input { 
     background-color: #e8f5e9 !important; 
     border: 2px solid #28a745 !important; 
 }
-
-/* 4. TLAČÍTKA */
 div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; }
 .active-btn button { background-color: #28a745 !important; color: white !important; border: none !important; }
-
 .custom-box { background:#f9f9f9; border:1px solid #ddd; padding:12px; height:120px; overflow-y:scroll; font-size:16px; }
 </style>""", unsafe_allow_html=True)
 
 st.title("🦁 PPC Studio")
 
-# KROK 1: VSTUPY
+# KROK 1
 c1, c2 = st.columns(2)
 br_v = st.session_state.get("br", "")
 p_ex = "p" in st.session_state
@@ -50,17 +41,16 @@ with c1:
 with c2:
     u = st.text_input("2. USPs (volitelné)", key="usps_in")
 
-# Tlačítko 1
 b1_cl = "active-btn" if (b.strip() and not p_ex) else ""
 st.markdown(f'<div class="{b1_cl}">', 1)
 if st.button("🚀 Vygenerovat prompt"):
-    st.session_state.p = (f"Jsi PPC copywriter. RSA (15 nadpisů do 30 zn, 4 popisky do 90 zn). "
-                         f"Brief: {b}. USPs: {u}. Jen texty, každý nový řádek.")
+    st.session_state.p = (f"Jsi PPC copywriter. RSA (15 nadpisů, 4 popisky). "
+                         f"Brief: {b}. USPs: {u}. Jen texty.")
     st.session_state.cp = False
     st.rerun()
 st.markdown('</div>', 1)
 
-# KROK 2: PROMPT
+# KROK 2
 if p_ex:
     st.markdown('<div style="margin-top:20px;"></div>', 1)
     st.markdown(f'<div class="custom-box">{st.session_state.p}</div>', 1)
@@ -73,32 +63,7 @@ if p_ex:
         st.rerun()
     st.markdown('</div>', 1)
 
-# KROK 3: VLOŽENÍ VÝSLEDKŮ
+# KROK 3
 if cp_ok:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
-    st.success("✅ Prompt zkopírován!")
-    st.info("👇 **Nyní vložte inzeráty vygenerované v Gemini do zeleného pole níže.**")
-    
-    ai_v = st.session_state.get("ai_in", "")
-    # Pole pro inzeráty zezelená po kopii promptu, dokud se nevyplní
-    cl_v = "step-active" if not ai_v.strip() else ""
-    st.markdown(f'<div class="{cl_v}">', 1)
-    v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in", height=150)
-    st.markdown('</div>', 1)
-
-    url_v = st.session_state.get("final_url", "")
-    # URL pole zezelená, když už jsou vložené inzeráty, ale chybí URL
-    cl_u = "step-active" if (ai_v.strip() and not url_v.strip()) else ""
-    st.markdown(f'<div class="{cl_u}">', 1)
-    url = st.text_input("URL webu (Povinné)", placeholder="https://www.web.cz", key="final_url")
-    st.markdown('</div>', 1)
-
-    if v.strip() and url.strip():
-        st.markdown('<div class="active-btn">', 1)
-        if st.button("✨ Vygenerovat inzeráty"):
-            ls = [x.strip() for x in v.split('\n') if x.strip()]
-            data = []
-            for i, t in enumerate(ls):
-                typ = "Nadpis" if i < 15 else "Popis"
-                limit = 30 if typ == "Nadpis" else 90
-                data.append({"Typ": typ, "Text": t, "Zbývá": limit -
+    st.success("✅ Prompt zkopírován
