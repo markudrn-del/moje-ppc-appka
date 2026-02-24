@@ -1,117 +1,98 @@
 import streamlit as st
 import pandas as pd
-import io
-import random
-from datetime import datetime
+import io, random
 
-# 1. Konfigurace a styl
-st.set_page_config(page_title="Publicis PPC Tool", layout="centered")
+st.set_page_config(layout="wide", page_title="PPC Studio")
+st.title("🦁 PPC Publicis Studio")
 
-st.markdown("""
-    <style>
-    .stButton>button { width: 100%; background-color: black; color: white; border-radius: 5px; }
-    .ad-preview {
-        background-color: white;
-        padding: 15px;
-        border: 1px solid #dfe1e5;
-        border-radius: 8px;
-        max-width: 600px;
-        font-family: Arial, sans-serif;
-        margin-bottom: 20px;
-    }
-    .ad-url { color: #202124; font-size: 14px; margin-bottom: 4px; }
-    .ad-title { color: #1a0dab; font-size: 20px; display: block; margin-bottom: 4px; font-weight: 400; }
-    .ad-desc { color: #4d5156; font-size: 14px; line-height: 1.58; }
-    .preview-header { font-weight: bold; margin-bottom: 10px; color: #5f6368; font-size: 12px; }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 1. KROK: VSTUPY ---
+c1, c2 = st.columns(2)
+with c1:
+    b_txt = st.text_area("Brief", height=100)
+with c2:
+    u_txt = st.text_input("Vlastní USPs")
 
-# 2. Sidebar
-with st.sidebar:
-    LOGO = "pub_logo_groupe_rvb.png"
-    try:
-        st.image(LOGO, width=200)
-    except:
-        st.write("🦁 **Publicis Groupe**")
-    st.markdown("---")
-    rok = datetime.now().year
-    st.write(f"Autor: Martin Kudrna, {rok}")
-
-st.title("🎯 PPC generátor inzerátů")
-
-# --- KROK 1: PROMPT ---
-st.subheader("1. Příprava zadání")
-brief = st.text_area("Vložte brief nebo obsah landing page:", height=200)
-
-if st.button("✨ Vygenerovat prompt"):
-    if brief:
-        p = "Jsi PPC expert. RSA inzeraty: 15 nadpisu (30 zn) a 4 popisky (90 zn). "
-        p += "Bez vykricniku. Format: 19 radku pod sebou. "
-        p += f"Zadani: {brief}"
-        st.code(p, language="text")
-        st.info("Prompt zkopírujte ikonkou vpravo nahoře.")
+if st.button("🚀 Generovat PRO prompt"):
+    if b_txt:
+        u_p = f" USPs: {u_txt}." if u_txt else ""
+        p_f = (
+            f"Jsi špičkový copywriter. Napiš RSA (15 nadpisů do 30 zn, 4 popisky do 90 zn). "
+            f"Cílem je maximální CTR. Brief: {b_txt}.{u_p} "
+            f"FORMÁT VÝSTUPU: Vypiš pouze texty, každý na nový řádek. "
+            f"BEZ čísel, BEZ odrážek, BEZ uvozovek. Prvních 15 řádků budou nadpisy, "
+            f"následující 4 řádky budou popisky."
+        )
+        st.info("Zkopírujte tento prompt do Gemini:")
+        # ZMENŠENÉ POLE S POSUVNÍKEM (height=150 zajistí kompaktnost)
+        st.code(p_f, language="text", wrap_lines=True)
+        # Poznámka: st.code v novějších verzích Streamlitu automaticky přidává posuvník, 
+        # pokud je text dlouhý, ale pro jistotu jsem zkrátil instrukce.
     else:
-        st.warning("Zadejte text briefu.")
+        st.warning("Nejdříve vložte brief.")
 
 st.markdown("---")
 
-# --- KROK 2: EXPORT A NÁHLEDY ---
-st.subheader("2. Export a Náhledy pro klienta")
-c1, c2 = st.columns(2)
-kampan = c1.text_input("Kampaň", "K_01")
-sestava = c2.text_input("Sestava", "S_01")
-web = st.text_input("Finální URL", "https://www.priklad.cz")
-vstup = st.text_area("Vložte 19 řádků od AI:", height=200)
+# --- 2. KROK: EDITOR ---
+u_link = st.text_input("URL webu", "https://publicis.cz")
+v_raw = st.text_area("Vložte texty z AI sem (čistý seznam)", height=150)
 
-if vstup and web != "https://":
-    rady = [r.strip() for r in vstup.split('\n') if r.strip()]
-    h_list = rady[0:15]
-    d_list = rady[15:19]
-    
-    # --- SEKCE NÁHLEDU (4 VARIANTY) ---
-    st.write("### 👁️ Náhledy pro klienta (4 varianty)")
-    
-    preview_html = f"<h2>Náhledy inzerátů - {sestava}</h2>"
-    
-    cols = st.columns(1)
-    for j in range(4):
-        # Výběr 3 nadpisů a 2 popisků
-        s_h = random.sample(h_list, min(3, len(h_list))) if len(h_list) >= 3 else h_list
-        s_d = random.sample(d_list, min(2, len(d_list))) if len(d_list) >= 2 else d_list
-        
-        d_title = " | ".join(s_h)
-        d_desc = " ".join(s_d)
-        c_url = web.replace("https://", "").replace("http://", "")
+def prepocet():
+    if "ppc_editor" in st.session_state:
+        df = st.session_state.df_data
+        ed = st.session_state["ppc_editor"]
+        for r, h in ed.get("edited_rows", {}).items():
+            for c, v in h.items():
+                df.at[int(r), c] = v
+        df["Zbyva"] = df.apply(lambda x: (30 if x["Typ"]=="Nadpis" else 90) - len(str(x["Text"])), axis=1)
+        st.session_state.df_data = df
 
-        ad_html = f"""
-        <div class="ad-preview">
-            <div class="preview-header">Varianta náhledu {j+1}</div>
-            <div class="ad-url">Sponzorováno • {c_url}</div>
-            <div class="ad-title">{d_title}</div>
-            <div class="ad-desc">{d_desc}</div>
-        </div>
-        """
-        st.markdown(ad_html, unsafe_allow_html=True)
-        preview_html += ad_html
+if st.button("✅ Načíst do tabulky"):
+    if v_raw.strip():
+        ls = [x.strip() for x in v_raw.split('\n') if x.strip()]
+        rows = []
+        for i in range(len(ls)):
+            t = ls[i]
+            tp = "Nadpis" if i < 15 else "Popis"
+            lim = 30 if tp == "Nadpis" else 90
+            rows.append({"Typ": tp, "Text": t, "Zbyva": lim - len(str(t))})
+        st.session_state.df_data = pd.DataFrame(rows)
+        st.rerun()
 
-    # --- EXPORTY ---
-    st.write("### 📊 Exporty")
-    
-    # 1. Export CSV
-    data = {"Campaign": kampan, "Ad Group": sestava, "Final URL": web}
-    for i in range(15): data[f"Headline {i+1}"] = h_list[i] if i < len(h_list) else ""
-    for i in range(4): data[f"Description {i+1}"] = d_list[i] if i < len(d_list) else ""
-    df = pd.DataFrame([data])
-    
-    buf_csv = io.StringIO()
-    df.to_csv(buf_csv, index=False, sep=';', encoding='utf-8-sig')
-    
-    c_down1, c_down2 = st.columns(2)
-    c_down1.download_button("📥 Stáhnout CSV pro Editor", buf_csv.getvalue(), f"export_{sestava}.csv")
-    
-    # 2. "PDF" Export (jako HTML soubor, který se v prohlížeči uloží jako PDF přes Tisk)
-    st.caption("Tip: Pro PDF klikněte na tlačítko níže, stiskněte Ctrl+P (nebo Cmd+P) a zvolte 'Uložit jako PDF'.")
-    st.download_button("📄 Stáhnout náhledy (HTML/PDF)", preview_html, f"nahledy_{sestava}.html", "text/html")
+if "df_data" in st.session_state:
+    st.data_editor(st.session_state.df_data, use_container_width=True, hide_index=True, key="ppc_editor", on_change=prepocet)
 
-elif vstup:
-    st.error("Doplňte URL adresu.")
+    # --- 3. KROK: NÁHLEDY ---
+    st.markdown("---")
+    st.subheader("👀 Náhledy inzerátů (6 kombinací)")
+    
+    df_f = st.session_state.df_data
+    h_l = df_f[df_f["Typ"]=="Nadpis"]["Text"].tolist()
+    d_l = df_f[df_f["Typ"]=="Popis"]["Text"].tolist()
+
+    if len(h_l) > 2 and len(d_l) > 1:
+        cols = st.columns(2)
+        for i in range(6):
+            with cols[i % 2]:
+                sh = random.sample(h_l, 3) if len(h_l)>=3 else h_l
+                sd = random.sample(d_l, 2) if len(d_l)>=2 else d_l
+                st.markdown(f"""
+                <div style="border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: white; font-family: Arial, sans-serif;">
+                    <div style="color: #202124; font-size: 12px; margin-bottom: 4px;">Sponzorováno • {u_link.replace('https://','')}</div>
+                    <div style="color: #1a0dab; font-size: 18px; margin-bottom: 4px; line-height: 1.2;">
+                        {sh[0]} – {sh[1]} – {sh[2] if len(sh)>2 else ""}
+                    </div>
+                    <div style="color: #4d5156; font-size: 13px; line-height: 1.4;">
+                        {sd[0]} {sd[1] if len(sd)>1 else ""}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # --- 4. KROK: EXPORT ---
+    st.markdown("---")
+    out = {"Campaign": "Kampaň 1", "Ad Group": "Sestava 1", "Final URL": u_link}
+    for i in range(1, 16):
+        out[f"Headline {i}"] = h_l[i-1] if i-1 < len(h_l) else ""
+    for i in range(1, 5):
+        out[f"Description {i}"] = d_l[i-1] if i-1 < len(d_l) else ""
+    
+    buf = io.BytesIO
