@@ -1,65 +1,69 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# POKROČILÉ CSS PRO DESIGN, VELIKOST PÍSMA A CENTROVÁNÍ
+# POKROČILÉ NAVIGAČNÍ CSS
 st.markdown("""<style>
 /* Zákaz červené a stínů */
 input, textarea, [data-baseweb="input"], [data-baseweb="textarea"] {
     border-color: #d1d5db !important; box-shadow: none !important;
 }
 
-/* Srovnání polí vedle sebe */
-[data-testid="column"] { display: flex !important; align-items: flex-end !important; }
+/* Srovnání polí a kompaktní výška */
+[data-testid="column"] { 
+    display: flex !important; flex-direction: column !important; justify-content: flex-end !important;
+}
 
-/* Vertikální centrování textu v inputu (USPs a URL) */
+/* Výška polí 60px */
+.stTextArea textarea { height: 60px !important; min-height: 60px !important; }
 div[data-testid="stTextInput"] div[data-baseweb="input"] {
-    height: 100px !important; display: flex !important; align-items: center !important;
-}
-.stTextArea textarea { height: 100px !important; }
-
-/* Velikost písma v poli promptu (shodná s tlačítky) */
-.custom-box { 
-    background:#f9f9f9; border:1px solid #ddd; padding:12px; 
-    height:120px; overflow-y:scroll; 
-    font-size:16px !important; font-weight: bold;
+    height: 60px !important; display: flex !important; align-items: center !important;
+    padding-left: 12px !important;
 }
 
-/* Zelená navigace a tlačítka */
+/* Zelená navigace - logické navádění */
 .step-active textarea, .step-active input { 
     background-color: #e8f5e9 !important; border: 2px solid #28a745 !important; 
 }
-div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; font-size: 16px !important; }
+
+/* Tlačítka */
+div.stButton>button { width: 100%; font-weight: bold; height: 3em; font-size: 16px !important; }
 .active-btn button { background-color: #28a745 !important; color: white !important; border: none !important; }
 
+/* Prompt box */
+.custom-box { 
+    background:#f9f9f9; border:1px solid #ddd; padding:15px; 
+    height:100px; overflow-y:scroll; 
+    font-size:16px !important; font-weight: bold; line-height: 1.4;
+}
 </style>""", unsafe_allow_html=True)
 
 st.title("🦁 PPC Studio")
 
-# KROK 1: VSTUPY
+# KROK 1: VSTUPY PRO PROMPT
 c1, c2 = st.columns(2)
 br_v = st.session_state.get("br", "")
 p_ex = "p" in st.session_state
 cp_ok = st.session_state.get("cp", False)
 
 with c1:
-    cl1 = "step-active" if (br_v.strip() and not p_ex) else ""
+    cl1 = "step-active" if (not p_ex) else ""
     st.markdown(f'<div class="{cl1}">', 1)
-    # Změněný popisek dle bodu 2
     b = st.text_area("1. Vložte brief nebo obsah stránky", key="br")
     st.markdown('</div>', 1)
 with c2:
-    u = st.text_input("2. USPs (volitelné)", key="usps_in")
+    st.text_input("2. USPs (volitelné)", key="usps_in")
 
-# Tlačítko 1 - Vygenerovat prompt
 b1_cl = "active-btn" if (b.strip() and not p_ex) else ""
 st.markdown(f'<div class="{b1_cl}">', 1)
 if st.button("Vygenerovat prompt"):
-    # FIXNÍ PROMPT DLE BODU 1
+    # UPRAVENÝ STRIKTNÍ PROMPT
     st.session_state.p = (
         f"Jsi nejlepší copywriter na PPC reklamy, které musí zvyšovat výkon a CTR. "
-        f"Vytvoř RSA inzeráty (15 nadpisů do 30 znaků a 4 popisky do 90 znaků). "
-        f"Generuj pouze čisté texty, každý na nový řádek. Nepoužívej žádné číslování ani odrážky. "
-        f"Zde je brief/obsah: {b}. USPs: {u}."
+        f"Vytvoř RSA inzeráty (15 nadpisů a 4 popisky). "
+        f"!!! STRIKTNĚ DODRŽUJ DÉLKY ZNAKŮ: Nadpis MAX 30 znaků, Popis MAX 90 znaků. "
+        f"Počítej každý znak, mezery i interpunkci. Pokud limit překročíš, text je nepoužitelný. !!! "
+        f"Generuj pouze čisté texty, každý na nový řádek. Nepoužívej žádné číslování. "
+        f"Zde je brief/obsah: {b}. USPs k zahrnutí: {st.session_state.usps_in}."
     )
     st.session_state.cp = False
     st.rerun()
@@ -67,10 +71,9 @@ st.markdown('</div>', 1)
 
 # KROK 2: PROMPT A KOPÍROVÁNÍ
 if p_ex:
-    st.markdown('<div style="margin-top:20px;"></div>', 1)
+    st.markdown('<div style="margin-top:15px;"></div>', 1)
     st.markdown(f'<div class="custom-box">{st.session_state.p}</div>', 1)
     
-    # Tlačítko kopírovat zezelená, když je prompt vygenerován (Bod 3)
     b2_cl = "active-btn" if not cp_ok else ""
     st.markdown(f'<div class="{b2_cl}">', 1)
     if st.button("📋 Zkopírovat prompt do schránky"):
@@ -80,19 +83,20 @@ if p_ex:
         st.rerun()
     st.markdown('</div>', 1)
 
-# KROK 3: NAVIGACE DO GEMINI A VLOŽENÍ
+# KROK 3: VLOŽENÍ VÝSLEDKŮ A URL
 if cp_ok:
     st.markdown('<div style="margin-top:10px;"></div>', 1)
-    # Hláška dle bodu 5
     st.warning("🚀 Otevřete Gemini a vložte do ní zkopírovaný prompt.")
     
     ai_v = st.session_state.get("ai_in", "")
+    url_v = st.session_state.get("final_url", "")
+    
+    # Navádění: Pokud jsou inzeráty, jdi na URL
     cl_v = "step-active" if not ai_v.strip() else ""
     st.markdown(f'<div class="{cl_v}">', 1)
-    v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in", height=150)
+    v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in", height=120)
     st.markdown('</div>', 1)
 
-    url_v = st.session_state.get("final_url", "")
     cl_u = "step-active" if (ai_v.strip() and not url_v.strip()) else ""
     st.markdown(f'<div class="{cl_u}">', 1)
     url = st.text_input("URL webu (Povinné)", placeholder="https://web.cz", key="final_url")
@@ -116,6 +120,7 @@ if cp_ok:
 if st.session_state.get("show_results") and "d" in st.session_state:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
     df = st.session_state.d
+    # Přepočet zbývajících znaků pro editor
     df["Zbývá"] = df.apply(lambda r: (30 if r["Typ"]=="Nadpis" else 90) - len(str(r["Text"])), axis=1)
     st.data_editor(df, use_container_width=True, key="ed", hide_index=True)
     
