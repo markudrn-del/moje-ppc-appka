@@ -5,17 +5,25 @@ import random
 
 st.set_page_config(layout="wide")
 
-# CSS
+# AGRESIVNÍ CSS PRO FIXNÍ VÝŠKU POLÍ
 st.markdown(
     """
     <style>
+    /* Zelená tlačítka */
     div.stButton > button {
         background-color: #28a745 !important;
         color: white !important;
     }
+    /* OMEZENÍ VÝŠKY PRO PROMPT I PRO VKLÁDÁNÍ TEXTU */
+    /* Cílíme přímo na vnitřní textarea prvek Streamlitu */
+    .stTextArea textarea {
+        max-height: 120px !important;
+    }
+    /* Omezení pro bloky kódu (st.code) */
     .stCodeBlock, .stCodeBlock div {
         max-height: 100px !important;
     }
+    /* Styl náhledu */
     .ad-preview {
         border: 1px solid #dadce0;
         border-radius: 8px;
@@ -47,13 +55,16 @@ if st.button("🚀 Generovat PRO prompt"):
         st.session_state.current_prompt = p_f
 
 if "current_prompt" in st.session_state:
+    st.info("Krok 1: Zkopírujte prompt")
+    # Tady se uplatní max-height 100px
     st.code(st.session_state.current_prompt)
 
 st.markdown("---")
 
 # 2. KROK
 u_link = st.text_input("URL", "https://publicis.cz")
-v_raw = st.text_area("Vložte texty z AI", key="ai_input")
+# Tady se uplatní max-height 120px, i když tam vložíš 50 řádků
+v_raw = st.text_area("Krok 2: Vložte texty z AI", key="ai_input")
 
 if st.session_state.ai_input.strip():
     if st.button("✨ Vygenerovat inzeráty"):
@@ -70,10 +81,7 @@ if st.session_state.ai_input.strip():
 # 3. KROK
 if "df_data" in st.session_state:
     st.markdown("---")
-    st.data_editor(
-        st.session_state.df_data,
-        key="ppc_editor"
-    )
+    st.data_editor(st.session_state.df_data, key="ppc_editor")
 
     st.subheader("👀 Náhledy")
     df_f = st.session_state.df_data
@@ -84,29 +92,22 @@ if "df_data" in st.session_state:
         cols = st.columns(2)
         for i in range(6):
             with cols[i % 2]:
-                # BEZPEČNÉ SAMPLOVÁNÍ NA VÍCE ŘÁDCÍCH
-                cnt_h = len(h_l)
-                n_h = min(3, cnt_h)
+                n_h = min(3, len(h_l))
                 sh = random.sample(h_l, n_h)
-                
-                cnt_d = len(d_l)
-                n_d = min(2, cnt_d)
+                n_d = min(2, len(d_l))
                 sd = random.sample(d_l, n_d) if d_l else [""]
-                
                 h_s = " – ".join(sh)
                 d_s = " ".join(sd)
-                
                 st.markdown(
                     f'<div class="ad-preview">'
                     f'<div style="color:gray;">{u_link}</div>'
-                    f'<div style="color:blue;">{h_s}</div>'
+                    f'<div style="color:blue;font-size:18px;">{h_s}</div>'
                     f'<div>{d_s}</div>'
                     f'</div>',
                     unsafe_allow_html=True
                 )
 
     st.markdown("---")
-    # Export
     out = {"Campaign": "C1", "URL": u_link}
     for i in range(1, 16):
         out[f"Headline {i}"] = h_l[i-1] if i-1 < len(h_l) else ""
