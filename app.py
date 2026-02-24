@@ -1,46 +1,43 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# AGRESIVNÍ CSS PRO VYNUCENÍ STYLU
+# BRUTÁLNÍ CSS PRO PŘEBITÍ VNITŘNÍCH STYLŮ STREAMLITU
 st.markdown("""<style>
-/* 1. RESET A JEDNOTNÁ VÝŠKA PRO VŠECHNA POLE */
-div[data-baseweb="base-input"], .stTextArea textarea, div[data-testid="stTextInput"] input {
-    height: 80px !important;
-    min-height: 80px !important;
-    max-height: 80px !important;
-    border-radius: 8px !important;
-}
-
-/* 2. ZAROVNÁNÍ SLOUPCŮ V ÚVODU */
-[data-testid="column"] {
+/* 1. SROVNÁNÍ VÝŠKY HORNÍCH POLÍ */
+div[data-testid="column"] {
+    min-height: 95px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-end !important;
 }
 
-/* 3. BARVY PRO NAVIGACI (VYNUCENÉ PŘES DIVY) */
-/* Každý "step-active" div teď obarví vše uvnitř sebe */
-.step-active div[data-baseweb="base-input"], 
-.step-active textarea, 
-.step-active input {
+/* 2. FIXNÍ VÝŠKA PRO VŠECHNA POLE */
+.stTextArea textarea, div[data-baseweb="input"] {
+    height: 85px !important;
+    min-height: 85px !important;
+}
+
+/* 3. ZELENÁ NAVIGACE - MÍŘÍME NA VNITŘNÍ POZADÍ */
+.step-active [data-baseweb="base-input"], 
+.step-active [data-baseweb="textarea"],
+.step-active textarea {
     background-color: #e8f5e9 !important;
     border: 2px solid #28a745 !important;
 }
 
-/* 4. ÚPRAVA TEXTU A POLÍ */
+/* 4. ÚPRAVA TEXTU */
 textarea, input {
     font-size: 16px !important;
-    padding: 15px !important;
-    resize: none !important;
+    padding: 12px !important;
 }
 
 /* 5. TLAČÍTKA */
-div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; border-radius: 8px !important; }
+div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; border-radius: 8px; }
 .active-btn button { background-color: #28a745 !important; color: white !important; }
 
 .custom-box { 
     background:#f9f9f9; border:1px solid #ddd; padding:15px; 
-    height:115px; overflow-y:scroll; font-weight: bold;
+    height:120px; overflow-y:scroll; font-weight: bold; line-height: 1.4;
 }
 </style>""", unsafe_allow_html=True)
 
@@ -65,9 +62,9 @@ b1_cl = "active-btn" if (br_v and not p_ex) else ""
 st.markdown(f'<div class="{b1_cl}">', 1)
 if st.button("Vygenerovat prompt"):
     st.session_state.p = (
-        f"Jsi nejlepší PPC copywriter. Vytvoř RSA (15 nadpisů, 4 popisky). "
-        f"STRIKTNĚ: Nadpis max 30, Popis max 90 znaků. "
-        f"Generuj jen čistý text bez číslování. "
+        f"Jsi nejlepší copywriter. Vytvoř RSA inzeráty (15 nadpisů, 4 popisky). "
+        f"!!! STRIKTNĚ DODRŽUJ DÉLKY: Nadpis max 30 znaků, Popis max 90 znaků. !!! "
+        f"Generuj pouze čisté texty bez číslování. "
         f"Brief: {b}. USPs: {st.session_state.usps_in}."
     )
     st.session_state.cp = False
@@ -82,7 +79,7 @@ if p_ex:
     b2_cl = "active-btn" if not cp_ok else ""
     st.markdown(f'<div class="{b2_cl}">', 1)
     if st.button("📋 Zkopírovat prompt"):
-        st.write(f'<script>navigator.clipboard.writeText("{st.session_state.p}")</script>', unsafe_allow_html=True)
+        st.write(f'<script>navigator.clipboard.writeText("{st.session_state.p.replace(chr(10), " ")}")</script>', unsafe_allow_html=True)
         st.session_state.cp = True
         st.rerun()
     st.markdown('</div>', 1)
@@ -94,7 +91,7 @@ if cp_ok:
     
     st.markdown("---")
     
-    # ZELENÁ 2: Inzeráty z Gemini (pokud jsou prázdné)
+    # ZELENÁ 2: Inzeráty z Gemini
     cl_v = "step-active" if not ai_v else ""
     st.markdown(f'<div class="{cl_v}">', unsafe_allow_html=True)
     v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in")
@@ -107,7 +104,7 @@ if cp_ok:
     st.markdown('</div>', unsafe_allow_html=True)
     
     if ai_v and not url_v:
-        st.error("❗ Prosím, vyplňte URL webu pro dokončení inzerátů.")
+        st.warning("⚠️ Zbývá poslední krok: Vyplňte URL webu.")
 
     if ai_v and url_v:
         st.markdown('<div class="active-btn">', 1)
@@ -119,7 +116,7 @@ if cp_ok:
             st.rerun()
         st.markdown('</div>', 1)
 
-# --- TABULKA ---
+# --- TABULKA VÝSLEDKŮ ---
 if st.session_state.get("show_results"):
     df = st.session_state.d
     df["Zbývá"] = df.apply(lambda r: (30 if r["Typ"]=="Nadpis" else 90) - len(str(r["Text"])), axis=1)
