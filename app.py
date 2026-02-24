@@ -5,25 +5,31 @@ import random
 
 st.set_page_config(layout="wide")
 
-# AGRESIVNÍ CSS PRO FIXNÍ VÝŠKU POLÍ
+# AGRESIVNÍ CSS PRO OSTATNÍ PRVKY
 st.markdown(
     """
     <style>
-    /* Zelená tlačítka */
     div.stButton > button {
         background-color: #28a745 !important;
         color: white !important;
     }
-    /* OMEZENÍ VÝŠKY PRO PROMPT I PRO VKLÁDÁNÍ TEXTU */
-    /* Cílíme přímo na vnitřní textarea prvek Streamlitu */
+    /* Omezení pole pro vkládání (Krok 2) */
     .stTextArea textarea {
-        max-height: 120px !important;
+        max-height: 150px !important;
     }
-    /* Omezení pro bloky kódu (st.code) */
-    .stCodeBlock, .stCodeBlock div {
-        max-height: 100px !important;
+    /* Styl pro náš vlastní prompt box */
+    .custom-prompt-box {
+        background-color: #f0f2f6;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        height: 100px;
+        overflow-y: scroll;
+        white-space: pre-wrap;
+        color: #31333F;
     }
-    /* Styl náhledu */
     .ad-preview {
         border: 1px solid #dadce0;
         border-radius: 8px;
@@ -48,22 +54,23 @@ with c2:
 if st.button("🚀 Generovat PRO prompt"):
     if b_txt:
         p_f = (
-            f"Jsi copywriter. RSA. "
-            f"Brief: {b_txt}. {u_txt} "
+            f"Jsi copywriter. RSA. Brief: {b_txt}. {u_txt} "
             f"FORMÁT: Jen texty, 15 nadpisů, 4 popisky."
         )
         st.session_state.current_prompt = p_f
 
 if "current_prompt" in st.session_state:
-    st.info("Krok 1: Zkopírujte prompt")
-    # Tady se uplatní max-height 100px
-    st.code(st.session_state.current_prompt)
+    st.info("Krok 1: Zkopírujte prompt níže (box má fixní výšku):")
+    # VLASTNÍ HTML BOX MÍSTO st.code
+    st.markdown(
+        f'<div class="custom-prompt-box">{st.session_state.current_prompt}</div>',
+        unsafe_allow_html=True
+    )
 
 st.markdown("---")
 
 # 2. KROK
 u_link = st.text_input("URL", "https://publicis.cz")
-# Tady se uplatní max-height 120px, i když tam vložíš 50 řádků
 v_raw = st.text_area("Krok 2: Vložte texty z AI", key="ai_input")
 
 if st.session_state.ai_input.strip():
@@ -112,9 +119,3 @@ if "df_data" in st.session_state:
     for i in range(1, 16):
         out[f"Headline {i}"] = h_l[i-1] if i-1 < len(h_l) else ""
     for i in range(1, 5):
-        out[f"Description {i}"] = d_l[i-1] if i-1 < len(d_l) else ""
-    
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf) as wr:
-        pd.DataFrame([out]).to_excel(wr, index=False)
-    st.download_button("📥 Excel", buf.getvalue(), "ppc.xlsx")
