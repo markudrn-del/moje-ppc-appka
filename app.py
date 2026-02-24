@@ -1,25 +1,36 @@
 import streamlit as st, pandas as pd, io, random
 st.set_page_config(layout="wide", page_title="PPC Studio")
 
-# CSS PRO DOKONALÉ ZAROVNÁNÍ A ZÁKAZ ČERVENÉ
+# CSS PRO DOKONALÝ DESIGN A STŘEDOVÝ KURZOR
 st.markdown("""<style>
-/* Zákaz červené barvy a stínů */
+/* 1. ZÁKAZ ČERVENÉ A STÍNŮ VŠUDE */
 .stTextArea textarea, .stTextInput input, 
-.stTextArea textarea:focus, .stTextInput input:focus { 
-    border-color: #d1d5db !important; box-shadow: none !important; 
-    background-color: white !important; color: black !important;
+.stTextArea textarea:focus, .stTextInput input:focus,
+.stTextArea [data-baseweb="textarea"], .stTextInput [data-baseweb="input"] { 
+    border-color: #d1d5db !important; 
+    box-shadow: none !important; 
+    background-color: white !important;
 }
-/* Srovnání výšky a pozice polí v prvním řádku */
-div[data-testid="column"] > div { vertical-align: bottom !important; }
-.stTextArea textarea { height: 100px !important; }
-.stTextInput input { height: 100px !important; }
 
-/* Aktivní zelené prvky */
-.step-active textarea, .step-active input { 
-    background-color: #f0fff4 !important; border: 1px solid #28a745 !important; 
+/* 2. SROVNÁNÍ POLÍ A KURZOR NA STŘED */
+.stTextArea textarea { height: 100px !important; }
+.stTextInput input { 
+    height: 100px !important; 
+    padding: 0 15px !important; 
+    display: flex !important;
+    align-items: center !important;
 }
+
+/* 3. ZELENÁ NAVIGACE (AKTIVNÍ KROK) */
+.step-active textarea, .step-active input { 
+    background-color: #e8f5e9 !important; 
+    border: 2px solid #28a745 !important; 
+}
+
+/* 4. TLAČÍTKA */
 div.stButton>button { width: 100%; font-weight: bold; height: 3.5em; }
-.active-btn button { background-color: #28a745 !important; color: white !important; }
+.active-btn button { background-color: #28a745 !important; color: white !important; border: none !important; }
+
 .custom-box { background:#f9f9f9; border:1px solid #ddd; padding:12px; height:120px; overflow-y:scroll; font-size:16px; }
 </style>""", unsafe_allow_html=True)
 
@@ -37,7 +48,6 @@ with c1:
     b = st.text_area("1. Brief nebo web", key="br")
     st.markdown('</div>', 1)
 with c2:
-    # USPs pole má nyní v CSS vynucenou výšku 100px
     u = st.text_input("2. USPs (volitelné)", key="usps_in")
 
 # Tlačítko 1
@@ -63,24 +73,26 @@ if p_ex:
         st.rerun()
     st.markdown('</div>', 1)
 
-# KROK 3: VLOŽENÍ A URL
+# KROK 3: VLOŽENÍ VÝSLEDKŮ
 if cp_ok:
     st.markdown('<div style="margin-top:30px;"></div>', 1)
-    st.success("✅ Prompt zkopírován! Vložte jej do Gemini.")
+    st.success("✅ Prompt zkopírován!")
+    st.info("👇 **Nyní vložte inzeráty vygenerované v Gemini do zeleného pole níže.**")
     
     ai_v = st.session_state.get("ai_in", "")
+    # Pole pro inzeráty zezelená po kopii promptu, dokud se nevyplní
     cl_v = "step-active" if not ai_v.strip() else ""
     st.markdown(f'<div class="{cl_v}">', 1)
-    v = st.text_area("3. Inzeráty z Gemini", key="ai_in", height=150)
+    v = st.text_area("Sem vložte vygenerované inzeráty z Gemini", key="ai_in", height=150)
     st.markdown('</div>', 1)
 
     url_v = st.session_state.get("final_url", "")
-    cl_u = "step-active" if url_v.strip() else ""
+    # URL pole zezelená, když už jsou vložené inzeráty, ale chybí URL
+    cl_u = "step-active" if (ai_v.strip() and not url_v.strip()) else ""
     st.markdown(f'<div class="{cl_u}">', 1)
-    url = st.text_input("4. URL webu (Povinné)", placeholder="https://www.web.cz", key="final_url")
+    url = st.text_input("URL webu (Povinné)", placeholder="https://www.web.cz", key="final_url")
     st.markdown('</div>', 1)
 
-    # Validace před generováním
     if v.strip() and url.strip():
         st.markdown('<div class="active-btn">', 1)
         if st.button("✨ Vygenerovat inzeráty"):
@@ -89,48 +101,4 @@ if cp_ok:
             for i, t in enumerate(ls):
                 typ = "Nadpis" if i < 15 else "Popis"
                 limit = 30 if typ == "Nadpis" else 90
-                data.append({"Typ": typ, "Text": t, "Zbývá": limit - len(t)})
-            st.session_state.d = pd.DataFrame(data)
-            st.session_state.show_results = True
-            st.rerun()
-        st.markdown('</div>', 1)
-    else:
-        if v.strip() and not url.strip():
-            st.error("⚠️ Prosím, vyplňte URL webu (Krok 4).")
-        st.button("Vygenerovat inzeráty (vyplňte všechna pole)", disabled=True)
-
-# KROK 4: VÝSTUPY
-if st.session_state.get("show_results") and "d" in st.session_state:
-    st.markdown('<div style="margin-top:30px;"></div>', 1)
-    
-    # Dynamický výpočet zbývajících znaků v editoru
-    df = st.session_state.d
-    def calc_rem(row):
-        limit = 30 if row["Typ"] == "Nadpis" else 90
-        return limit - len(str(row["Text"]))
-    
-    df["Zbývá"] = df.apply(calc_rem, axis=1)
-    
-    st.data_editor(df, use_container_width=True, key="ed", hide_index=True,
-                   column_config={"Zbývá": st.column_config.NumberColumn(format="%d")})
-    
-    h_l = df[df["Typ"]=="Nadpis"]["Text"].tolist()
-    d_l = df[df["Typ"]=="Popis"]["Text"].tolist()
-    f_u = st.session_state.get("final_url", "")
-
-    st.subheader("👀 Náhledy")
-    cols = st.columns(2)
-    for i in range(4):
-        with cols[i%2]:
-            sh = random.sample(h_l, min(3, len(h_l))) if h_l else ["Nadpis"]
-            sd = random.sample(d_l, min(2, len(d_l))) if d_l else ["Popis"]
-            st.markdown(f"""<div style="border:1px solid #ddd;padding:10px;border-radius:8px;background:white;margin-bottom:10px;">
-                <small style="color:gray;">{f_u}</small><br>
-                <b style="color:blue;">{" - ".join(sh)}</b><br>{ " ".join(sd) }</div>""", 1)
-    
-    exp = {"Final URL": f_u}
-    for i in range(1, 16): exp[f"Headline {i}"] = h_l[i-1] if i-1 < len(h_l) else ""
-    for i in range(1, 5): exp[f"Description {i}"] = d_l[i-1] if i-1 < len(d_l) else ""
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf) as wr: pd.DataFrame([exp]).to_excel(wr, index=False)
-    st.download_button("📥 Stáhnout EXCEL", buf.getvalue(), "ppc_import.xlsx")
+                data.append({"Typ": typ, "Text": t, "Zbývá": limit -
